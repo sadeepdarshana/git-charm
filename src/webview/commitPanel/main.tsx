@@ -1339,7 +1339,7 @@ function App() {
       {(() => {
         const totalToPush = repos.reduce((sum, r) => {
           if (r.branch.upstream) return sum + (r.branch.aheadBehind?.ahead ?? 0);
-          return sum + Math.max(1, unpushedMap[r.repoId]?.commits?.length ?? 0);
+          return sum + (unpushedMap[r.repoId]?.commits?.length ?? 0);
         }, 0);
         const totalChanges = repos.reduce((sum, r) => {
           const paths = new Set([...r.stagedFiles.map(f => f.path), ...r.unstagedFiles.map(f => f.path)]);

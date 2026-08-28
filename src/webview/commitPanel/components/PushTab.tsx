@@ -636,24 +636,30 @@ function RepoSection({ repoStatus, repoMeta, unpushed, checked, canCheck, onTogg
 
 export function PushTab({ repos, repoMetas, unpushedMap, onPush, onForcePush, onPushAll, onSyncAndPush, onOpenInLog, onUndoCommit, onSquash, onDropCommits, onRevertCommits, onEditCommitMsg, onOpenDetail, onOpenChanges, onExplainCommit, onViewCombinedDiff, onBranchClick, aiEnabled }: Props) {
   const metaMap = new Map(repoMetas.map(m => [m.id, m]));
-  const isSingleRepo = repos.length === 1;
   const [checked, setChecked] = useState<Set<string>>(() => new Set<string>());
 
-  const canPushRepo = (r: RepoStatus) => {
+  const hasCommitsToPush = (r: RepoStatus) => {
     const ahead = r.branch.aheadBehind?.ahead ?? 0;
-    const hasUpstream = !!r.branch.upstream;
-    return (hasUpstream && ahead > 0) || !hasUpstream;
+    if (r.branch.upstream) return ahead > 0;
+    return (unpushedMap[r.repoId]?.commits.length ?? 0) > 0;
   };
+
+  const pushRepos = repos.filter(r =>
+    hasCommitsToPush(r) || (!r.branch.upstream && unpushedMap[r.repoId]?.loading),
+  );
+  const isSingleRepo = pushRepos.length === 1;
+  const canPushRepo = hasCommitsToPush;
 
   const isBehindRepo = (r: RepoStatus) => (r.branch.aheadBehind?.behind ?? 0) > 0;
 
   // Auto-deselect repos that no longer have commits to push
   useEffect(() => {
     setChecked(prev => {
-      const toRemove = repos.filter(r => prev.has(r.repoId) && !canPushRepo(r));
+      const pushableIds = new Set(repos.filter(canPushRepo).map(r => r.repoId));
+      const toRemove = [...prev].filter(repoId => !pushableIds.has(repoId));
       if (toRemove.length === 0) return prev;
       const next = new Set(prev);
-      toRemove.forEach(r => next.delete(r.repoId));
+      toRemove.forEach(repoId => next.delete(repoId));
       return next;
     });
   }, [repos, unpushedMap]);
@@ -675,9 +681,20 @@ export function PushTab({ repos, repoMetas, unpushedMap, onPush, onForcePush, on
     return 'Push';
   };
 
+  if (pushRepos.length === 0) {
+    return (
+      <div style={css.root}>
+        <div style={css.emptyState}>
+          <Codicon name="check" style={{ fontSize: '18px', opacity: 0.55 }} />
+          <div>No repositories with changes to push</div>
+        </div>
+      </div>
+    );
+  }
+
   // Single repo: push directly, no checkbox needed
   if (isSingleRepo) {
-    const solo = repos[0];
+    const solo = pushRepos[0];
     const canPush = canPushRepo(solo);
     const needsSync = canPush && isBehindRepo(solo);
     const mainLabel = needsSync ? 'Sync & Push' : pushButtonLabel([solo]);
@@ -731,7 +748,7 @@ export function PushTab({ repos, repoMetas, unpushedMap, onPush, onForcePush, on
     );
   }
 
-  const checkedRepos = repos.filter(r => checked.has(r.repoId));
+  const checkedRepos = pushRepos.filter(r => checked.has(r.repoId));
   const pushableChecked = checkedRepos.filter(canPushRepo);
   const canPush = pushableChecked.length > 0;
 
@@ -748,7 +765,7 @@ export function PushTab({ repos, repoMetas, unpushedMap, onPush, onForcePush, on
     <div style={css.root}>
       {/* Scrollable repo list */}
       <div style={css.list}>
-        {repos.map(repoStatus => (
+        {pushRepos.map(repoStatus => (
           <RepoSection
             key={repoStatus.repoId}
             repoStatus={repoStatus}
@@ -841,6 +858,12 @@ export function PushTab({ repos, repoMetas, unpushedMap, onPush, onForcePush, on
 const css = {
   root: { display: 'flex', flexDirection: 'column' as const, flex: 1, minHeight: 0 },
   list: { flex: 1, overflowY: 'auto' as const, minHeight: 0 },
+  emptyState: {
+    flex: 1,
+    display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: '8px',
+    color: 'var(--vscode-descriptionForeground)', fontSize: '12px', textAlign: 'center' as const,
+    padding: '24px 12px',
+  },
   footer: {
     flexShrink: 0,
     display: 'flex', flexDirection: 'column' as const, gap: '6px',
