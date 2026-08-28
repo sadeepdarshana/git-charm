@@ -266,6 +266,12 @@
         "icon": "$(multiple-windows)"
       },
       {
+        "command": "gitcharm.commitSelectedFiles",
+        "title": "Commit Selected Files...",
+        "category": "GitCharm",
+        "icon": "$(git-commit)"
+      },
+      {
         "command": "gitcharm.showFileHistory",
         "title": "Show File History",
         "category": "GitCharm",
@@ -482,14 +488,19 @@
       ],
       "gitcharm/explorer": [
         {
-          "command": "gitcharm.showFileHistory",
+          "command": "gitcharm.commitSelectedFiles",
           "when": "resourceScheme == file && !explorerResourceIsFolder",
           "group": "navigation@1"
         },
         {
+          "command": "gitcharm.showFileHistory",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation@2"
+        },
+        {
           "command": "gitcharm.compareWith",
           "when": "resourceScheme == file",
-          "group": "navigation@2"
+          "group": "navigation@3"
         }
       ],
       "editor/context": [

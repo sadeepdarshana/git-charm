@@ -285,6 +285,9 @@ function App() {
   // ── Hidden repositories ───────────────────────────────────────────────────
   const [hiddenRepoIds, setHiddenRepoIds] = useState<string[]>([]);
 
+  // ── Changes view filters ──────────────────────────────────────────────────
+  const [showOnlyChangedRepos, setShowOnlyChangedRepos] = useState(false);
+
   // ── Submodule detached HEAD warnings ─────────────────────────────────────
   // repoId → headCommit — shown as dismissable banner above the file tree
   const [detachedWarnings, setDetachedWarnings] = useState<Record<string, string>>({});
@@ -453,6 +456,11 @@ function App() {
     getVsCodeApi().postMessage(msg);
   }, []);
 
+  const setRepoFilter = useCallback((showOnlyChangedRepos: boolean) => {
+    setShowOnlyChangedRepos(showOnlyChangedRepos);
+    send({ type: 'COMMIT_SET_REPO_FILTER', showOnlyChangedRepos });
+  }, [send]);
+
   // Close view-menus on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -484,6 +492,9 @@ function App() {
       }
 
       switch (msg.type) {
+        case 'COMMIT_REPO_FILTER_UPDATE':
+          setShowOnlyChangedRepos(msg.showOnlyChangedRepos);
+          break;
         case 'COMMIT_STATUS_UPDATE':
           store.setStatus(msg.repos, msg.status, msg.iconTheme, msg.fileViewMode, msg.defaultCommitAction, msg.defaultSaveAction, msg.hasWorkspaceFolder, msg.aiEnabled, msg.activeProfile);
           if (Array.isArray(msg.status.repos) && useCommitStore.getState().changesViewMode === 'vscode') {
@@ -761,9 +772,13 @@ function App() {
 
   const allRepos = store.status?.repos ?? [];
   const repos = hiddenRepoIds.length > 0 ? allRepos.filter(r => !hiddenRepoIds.includes(r.repoId)) : allRepos;
+  const changedRepos = repos.filter(r => r.stagedFiles.length > 0 || r.unstagedFiles.length > 0);
+  const changesRepos = showOnlyChangedRepos ? changedRepos : repos;
   const metaMap = new Map(store.repoMetas.map(m => [m.id, m]));
   const multiRepo = repos.length >= 1;
   const singleRepo = repos.length === 1;
+  const changesMultiRepo = changesRepos.length >= 1;
+  const changesSingleRepo = changesRepos.length === 1;
 
   // Keep unpushed-commit counts fresh for repos without upstream so the Push tab badge
   // shows the correct number even before the tab is opened. Upstream repos are live via aheadBehind.ahead.
@@ -972,7 +987,7 @@ function App() {
         send({ type: 'COMMIT_REQUEST_STATUS' });
         break;
     }
-  }, [clHeaderCtxMenu, store.changelists, send]);
+  }, [clHeaderCtxMenu, store.changelists, changesRepos, send]);
 
   // ── Push actions ──────────────────────────────────────────────────────────
 
@@ -1217,6 +1232,15 @@ function App() {
                 </div>
               )}
             </div>
+            <button
+              data-action-btn=""
+              style={{ ...css.iconBtn, ...(showOnlyChangedRepos ? css.activeIconBtn : {}) }}
+              title={showOnlyChangedRepos ? 'Show all repositories' : 'Show only repositories with changes'}
+              aria-pressed={showOnlyChangedRepos}
+              onClick={() => setRepoFilter(!showOnlyChangedRepos)}
+            >
+              <Codicon name="filter" />
+            </button>
           </>)}
           {activeTab === 'shelf' && (<>
             <button data-action-btn="" style={css.iconBtn} title="Expand all" onClick={() => {
@@ -1369,9 +1393,17 @@ function App() {
 
           {/* File list */}
           <ScrollArea style={css.repoList}>
-            {store.changesViewMode === 'vscode' ? (
+            {showOnlyChangedRepos && changesRepos.length === 0 ? (
+              <div style={css.filteredEmptyState}>
+                <Codicon name="filter" style={{ fontSize: '18px', opacity: 0.55 }} />
+                <div>No repositories with changes</div>
+                <button style={css.clearFilterBtn} onClick={() => setRepoFilter(false)}>
+                  Show all repositories
+                </button>
+              </div>
+            ) : store.changesViewMode === 'vscode' ? (
               <VscodeView
-                repos={repos}
+                repos={changesRepos}
                 repoMetas={store.repoMetas}
                 selectedFile={selectedFile ? { repoId: selectedFile.repoId, path: selectedFile.path } : null}
                 ctxFile={ctxFile}
@@ -1430,7 +1462,7 @@ function App() {
             ) : store.changesViewMode === 'changelists' ? (
               <ChangelistView
                 changelists={store.changelists}
-                repos={repos}
+                repos={changesRepos}
                 repoMetas={store.repoMetas}
                 selectedFile={selectedFile ? { repoId: selectedFile.repoId, path: selectedFile.path } : null}
                 viewMode={store.viewMode}
@@ -1478,7 +1510,7 @@ function App() {
                 multiSelectedFiles={multiSelectedFiles}
               />
             ) : (
-              repos.map((repoStatus, idx) => {
+              changesRepos.map((repoStatus, idx) => {
                 const repoId = repoStatus.repoId;
                 const meta = metaMap.get(repoId);
                 const repoName = meta?.name ?? repoId.split('/').pop() ?? repoId;
@@ -1513,8 +1545,8 @@ function App() {
                       repoStatus={repoStatus}
                       repoName={repoName}
                       repoColor={repoColor}
-                      multiRepo={multiRepo}
-                      singleRepo={singleRepo}
+                      multiRepo={changesMultiRepo}
+                      singleRepo={changesSingleRepo}
                       isSubmodule={meta?.isSubmodule}
                       submodulePath={meta?.submodulePath}
                       isWorktree={meta?.isWorktree}
@@ -1601,7 +1633,7 @@ function App() {
           {/* Commit form */}
           <UnifiedCommitForm
             message={store.commitMessage}
-            repoStatuses={repos}
+            repoStatuses={changesRepos}
             repoMetas={store.repoMetas}
             amendFlags={store.amendFlags}
             loading={store.loading}
@@ -1614,7 +1646,7 @@ function App() {
               if (store.changesViewMode === 'vscode') {
                 toggleVscodeRepoSelection(repoId);
               } else {
-                const r = repos.find(r => r.repoId === repoId);
+                const r = changesRepos.find(r => r.repoId === repoId);
                 if (!r) return;
                 const allPaths = [...r.stagedFiles, ...r.unstagedFiles].map(f => f.path);
                 store.setFileSelections(repoId, allPaths, false);
@@ -1641,7 +1673,7 @@ function App() {
             onShelve={() => {
               const name = store.commitMessage.trim();
               if (!name) return;
-              for (const repoStatus of repos) {
+              for (const repoStatus of changesRepos) {
                 const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
                 if (selectedPaths.length === 0) continue;
                 confirmShelve(repoStatus.repoId, name, selectedPaths);
@@ -1650,7 +1682,7 @@ function App() {
             }}
             onStash={() => {
               const message = store.commitMessage.trim() || 'WIP stash';
-              for (const repoStatus of repos) {
+              for (const repoStatus of changesRepos) {
                 const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
                 if (selectedPaths.length === 0) continue;
                 doStash(repoStatus.repoId, message, selectedPaths);
@@ -2046,7 +2078,7 @@ function App() {
               : CHANGELIST_HEADER_ITEMS_CUSTOM;
         const clFileCount = (() => {
           if (isEmpty) return 0;
-          if (isUnversioned) return repos.reduce((sum, r) => sum + r.unstagedFiles.filter(f => f.status === 'untracked').length, 0);
+          if (isUnversioned) return changesRepos.reduce((sum, r) => sum + r.unstagedFiles.filter(f => f.status === 'untracked').length, 0);
           const cl = store.changelists.find(c => c.id === clHeaderCtxMenu.changelistId);
           if (!cl) return 0;
           return Object.values(cl.fileAssignments).reduce((sum, paths) => sum + paths.length, 0);
@@ -2084,6 +2116,11 @@ const css = {
     background: 'transparent', border: 'none', color: 'var(--vscode-foreground)',
     cursor: 'pointer', padding: '4px 5px', borderRadius: '3px',
     fontSize: '14px', display: 'flex', alignItems: 'center', opacity: 0.8,
+  } as React.CSSProperties,
+  activeIconBtn: {
+    background: 'var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground))',
+    color: 'var(--vscode-textLink-foreground, var(--vscode-foreground))',
+    opacity: 1,
   } as React.CSSProperties,
   dropdownPanel: {
     position: 'absolute' as const, top: '100%', left: 0, zIndex: 1000,
@@ -2145,6 +2182,17 @@ const css = {
   } as React.CSSProperties,
   main: { display: 'flex', flexDirection: 'column' as const, flex: 1, overflow: 'hidden' },
   repoList: { flex: 1, minHeight: 0 },
+  filteredEmptyState: {
+    display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '10px',
+    padding: '32px 16px', color: 'var(--vscode-foreground)', opacity: 0.7,
+    fontSize: '12px', textAlign: 'center' as const,
+  } as React.CSSProperties,
+  clearFilterBtn: {
+    background: 'var(--vscode-button-secondaryBackground, var(--vscode-button-background))',
+    color: 'var(--vscode-button-secondaryForeground, var(--vscode-button-foreground))',
+    border: 'none', borderRadius: '3px', padding: '4px 9px', cursor: 'pointer',
+    fontSize: '11px',
+  } as React.CSSProperties,
   // Shelve name prompt bar (above commit form)
   detachedBanner: {
     display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px',

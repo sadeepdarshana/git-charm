@@ -44,6 +44,18 @@ export function registerCommands(
       vscode.commands.executeCommand('gitcharm.commitPanel.focus');
     }),
 
+    vscode.commands.registerCommand(
+      'gitcharm.commitSelectedFiles',
+      async (uriOrUris?: vscode.Uri | vscode.Uri[], selectedUris?: vscode.Uri[]) => {
+        const primaryUris = Array.isArray(uriOrUris) ? uriOrUris : uriOrUris ? [uriOrUris] : [];
+        const explorerSelection = selectedUris?.length ? selectedUris : primaryUris;
+        const activeFile = vscode.window.activeTextEditor?.document.uri;
+        await commitPanel.commitExplorerFiles(
+          explorerSelection.length > 0 ? explorerSelection : activeFile ? [activeFile] : [],
+        );
+      },
+    ),
+
     vscode.commands.registerCommand('gitcharm.pull', () => {
       return branchStatusBar.updateProject();
     }),
