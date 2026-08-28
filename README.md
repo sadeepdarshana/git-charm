@@ -286,7 +286,7 @@ Use the Status Bar branch menu for fast project-wide actions such as updating al
 | `gitcharm.autoRefreshInterval` | `0` | Auto-refresh interval in seconds. `0` disables interval refresh and uses file watchers only. |
 | `gitcharm.changesViewMode` | `"simplified"` | How to display changed files: `simplified`, `changelists`, or `vscode`. Chosen via QuickPick on first install. |
 | `gitcharm.gitAnnotations.enabled` | `true` | Enable inline Git blame annotations in the editor. |
-| `gitcharm.gitGhostText.enabled` | `true` | Enable inline Git ghost text in the editor. |
+| `gitcharm.gitGhostText.enabled` | `false` | Show Git blame details at the end of the active editor line. |
 | `gitcharm.gitProfiles` | `[]` | Named Git identity profiles (name, email) managed by GitCharm. |
 | `gitcharm.activeGitProfileId` | `""` | ID of the currently active Git profile for this workspace. |
 | `gitcharm.suppressDivergedWarning` | `false` | Suppress the "diverged" warning in the status bar when local and remote have diverged. |

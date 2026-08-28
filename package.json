@@ -646,8 +646,8 @@
           "gitcharm.gitGhostText.enabled": {
             "order": 100,
             "type": "boolean",
-            "default": true,
-            "description": "Enable inline Git ghost text in the editor."
+            "default": false,
+            "description": "Show Git blame details at the end of the active editor line."
           },
           "gitcharm.changesViewMode": {
             "order": 10,

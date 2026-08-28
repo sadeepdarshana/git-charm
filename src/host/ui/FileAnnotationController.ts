@@ -593,7 +593,7 @@ export class FileAnnotationController implements vscode.Disposable {
   private isGitGhostTextEnabled(): boolean {
     return vscode.workspace
       .getConfiguration(CONFIG_SECTION)
-      .get<boolean>(GIT_GHOST_TEXT_ENABLED, true);
+      .get<boolean>(GIT_GHOST_TEXT_ENABLED, false);
   }
 
   private updateContextKey(editor: vscode.TextEditor): void {
