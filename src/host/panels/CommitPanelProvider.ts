@@ -65,6 +65,188 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   prefillCommitMessage(message: string): void {
     this.post({ type: 'COMMIT_SET_MESSAGE', message });
   }
+
+  async commitExplorerFiles(fileUris: readonly vscode.Uri[]): Promise<void> {
+    const fileOnlyUris = fileUris.filter(uri => uri.scheme === 'file');
+    const uniqueUris = [...new Map(
+      fileOnlyUris.map(uri => [path.resolve(uri.fsPath), uri] as const),
+    ).values()];
+
+    const selectedFiles: vscode.Uri[] = [];
+    let skippedCount = fileUris.length - fileOnlyUris.length;
+    for (const uri of uniqueUris) {
+      try {
+        const stat = await vscode.workspace.fs.stat(uri);
+        if ((stat.type & vscode.FileType.Directory) !== 0) {
+          skippedCount++;
+          continue;
+        }
+        selectedFiles.push(uri);
+      } catch {
+        skippedCount++;
+      }
+    }
+
+    if (selectedFiles.length === 0) {
+      vscode.window.showInformationMessage('Select one or more files to commit.');
+      return;
+    }
+
+    const selectedPaths = new Set(selectedFiles.map(uri => path.resolve(uri.fsPath)));
+    const dirtyDocuments = vscode.workspace.textDocuments.filter(document =>
+      document.uri.scheme === 'file' &&
+      document.isDirty &&
+      selectedPaths.has(path.resolve(document.uri.fsPath))
+    );
+    for (const document of dirtyDocuments) {
+      if (!await document.save()) {
+        vscode.window.showWarningMessage(`Could not save ${path.basename(document.uri.fsPath)}. Commit cancelled.`);
+        return;
+      }
+    }
+
+    const groupedPaths = new Map<string, { rootPath: string; paths: Set<string> }>();
+    for (const uri of selectedFiles) {
+      const match = this.manager.getServiceForFile(path.resolve(uri.fsPath));
+      if (!match) {
+        skippedCount++;
+        continue;
+      }
+      const relativePath = path.relative(match.rootPath, uri.fsPath).split(path.sep).join('/');
+      if (!relativePath || relativePath === '..' || relativePath.startsWith('../')) {
+        skippedCount++;
+        continue;
+      }
+      const group = groupedPaths.get(match.repoId) ?? { rootPath: match.rootPath, paths: new Set<string>() };
+      group.paths.add(relativePath);
+      groupedPaths.set(match.repoId, group);
+    }
+
+    const commitGroups: Array<{ repoId: string; rootPath: string; paths: string[]; ignoredPaths: string[] }> = [];
+    const conflictedFiles: string[] = [];
+    let ignoredFileCount = 0;
+    for (const [repoId, group] of groupedPaths) {
+      const repo = this.manager.getRepo(repoId);
+      if (!repo) {
+        skippedCount += group.paths.size;
+        continue;
+      }
+      let status: Awaited<ReturnType<typeof repo.getStatusFresh>>;
+      try {
+        status = await repo.getStatusFresh();
+      } catch (error: unknown) {
+        const formatted = formatGitError(error);
+        logError(`commit-selected-files:${repoId}`, formatted, getRawErrorDetail(error));
+        vscode.window.showErrorMessage(`Could not read repository status: ${formatted}`);
+        return;
+      }
+      const changedFiles = [...status.stagedFiles, ...status.unstagedFiles];
+      const paths: string[] = [];
+      const ignoredPaths: string[] = [];
+      for (const selectedPath of group.paths) {
+        const entries = changedFiles.filter(file => file.path === selectedPath);
+        if (entries.length === 0) {
+          if (await repo.isIgnored(selectedPath)) {
+            paths.push(selectedPath);
+            ignoredPaths.push(selectedPath);
+            ignoredFileCount++;
+          } else {
+            skippedCount++;
+          }
+        } else if (entries.some(file => file.status === 'conflicted')) {
+          conflictedFiles.push(selectedPath);
+        } else {
+          paths.push(selectedPath);
+        }
+      }
+      if (paths.length > 0) commitGroups.push({ repoId, rootPath: group.rootPath, paths, ignoredPaths });
+    }
+
+    if (conflictedFiles.length > 0) {
+      const names = conflictedFiles.slice(0, 4).map(file => path.basename(file)).join(', ');
+      const more = conflictedFiles.length > 4 ? ` and ${conflictedFiles.length - 4} more` : '';
+      vscode.window.showWarningMessage(`Resolve conflicts before committing: ${names}${more}.`);
+      return;
+    }
+
+    const fileCount = commitGroups.reduce((count, group) => count + group.paths.length, 0);
+    if (fileCount === 0) {
+      vscode.window.showInformationMessage('None of the selected files has changes to commit.');
+      return;
+    }
+
+    const repoCount = commitGroups.length;
+    const ignoredPrompt = ignoredFileCount > 0
+      ? ` ${ignoredFileCount} ignored ${ignoredFileCount === 1 ? 'file' : 'files'} will be force-added.`
+      : '';
+    const message = await vscode.window.showInputBox({
+      title: repoCount === 1
+        ? `Commit ${fileCount} selected ${fileCount === 1 ? 'file' : 'files'}`
+        : `Commit ${fileCount} selected files across ${repoCount} repositories`,
+      prompt: repoCount > 1
+        ? `Files are staged automatically.${ignoredPrompt} One commit will be created in each repository. Leave blank to use "update".`
+        : `The selected files are staged automatically.${ignoredPrompt} Leave blank to use "update".`,
+      placeHolder: 'Commit message (default: update)',
+      ignoreFocusOut: true,
+    });
+    if (message === undefined) return;
+    const commitMessage = message.trim() || 'update';
+
+    const successes: Array<{ repoId: string; fileCount: number }> = [];
+    const failures: Array<{ repoId: string; error: string }> = [];
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: repoCount === 1 ? 'Committing selected files' : `Committing selected files in ${repoCount} repositories`,
+        cancellable: false,
+      },
+      async progress => {
+        for (const group of commitGroups) {
+          const repo = this.manager.getRepo(group.repoId);
+          if (!repo) continue;
+          const repoName = this.manager.getRepoMetas().find(meta => meta.id === group.repoId)?.name ?? path.basename(group.rootPath);
+          progress.report({ message: repoName });
+          try {
+            const ignoredPathSet = new Set(group.ignoredPaths);
+            const normalPaths = group.paths.filter(selectedPath => !ignoredPathSet.has(selectedPath));
+            if (normalPaths.length > 0) await repo.stageFiles(normalPaths);
+            if (group.ignoredPaths.length > 0) await repo.stageFiles(group.ignoredPaths, true);
+            const credentials = await this.getCommitCredentials(repo.rootPath);
+            await repo.commitFiles(commitMessage, group.paths, credentials, line => this.profileService?.trace(line));
+            successes.push({ repoId: group.repoId, fileCount: group.paths.length });
+            logInfo('commit-selected-files', `Committed ${group.paths.length} selected file(s) in ${repoName}`);
+          } catch (error: unknown) {
+            const formatted = formatGitError(error);
+            failures.push({ repoId: group.repoId, error: formatted });
+            logError(`commit-selected-files:${group.repoId}`, formatted, getRawErrorDetail(error));
+          }
+        }
+      },
+    );
+
+    this.logProvider?.refresh();
+    const status = await this.manager.getAllStatusesFresh();
+    this.postChangelistsUpdate(status);
+    this.broadcastCommit({ type: 'COMMIT_STATUS_UPDATE', repos: this.manager.getRepoMetas(), status });
+
+    const committedFiles = successes.reduce((count, result) => count + result.fileCount, 0);
+    if (failures.length > 0) {
+      const failedRepos = failures.map(failure => {
+        const name = this.manager.getRepoMetas().find(meta => meta.id === failure.repoId)?.name ?? path.basename(failure.repoId);
+        return `${name}: ${failure.error}`;
+      }).join('; ');
+      const prefix = committedFiles > 0 ? `${committedFiles} file(s) committed; ` : '';
+      void vscode.window.showWarningMessage(`${prefix}${failures.length} repository commit(s) failed: ${failedRepos}`, 'Show Log')
+        .then(choice => { if (choice === 'Show Log') showLogChannel(); });
+      return;
+    }
+
+    const skippedSuffix = skippedCount > 0 ? ` ${skippedCount} unchanged or unsupported selection(s) skipped.` : '';
+    vscode.window.showInformationMessage(
+      `Committed ${committedFiles} ${committedFiles === 1 ? 'file' : 'files'} in ${successes.length} ${successes.length === 1 ? 'repository' : 'repositories'}.${skippedSuffix}`,
+    );
+  }
+
   private shelveServices = new Map<string, ShelveService>();
 
   private getShelveService(repoId: string): ShelveService | undefined {

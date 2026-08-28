@@ -916,7 +916,16 @@ export class GitService {
     } catch { return null; }
   }
 
-  async stageFiles(paths: string[]): Promise<void> {
+  async isIgnored(filePath: string): Promise<boolean> {
+    try {
+      await this.git.raw(['check-ignore', '-q', '--', filePath]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async stageFiles(paths: string[], force = false): Promise<void> {
     const vsRepo = this.vsRepo();
     // Always use simple-git for gitlink (submodule pointer) entries —
     // vsRepo.add() silently ignores mode-160000 entries.
@@ -954,7 +963,9 @@ export class GitService {
       await this.git.raw(['add', '--', ...gitlinkPaths]);
     }
     if (regularPaths.length > 0) {
-      if (vsRepo) {
+      if (force) {
+        await this.git.raw(['add', '--force', '--', ...regularPaths]);
+      } else if (vsRepo) {
         await vsRepo.add(regularPaths.map(p => path.resolve(this.rootPath, p)));
       } else {
         const rootPrefix = this.rootPath + path.sep;
@@ -1074,6 +1085,43 @@ export class GitService {
     }
     const result = await this.git.commit(message, undefined, amend ? { '--amend': null } : {});
     return result.summary.changes.toString();
+  }
+
+  /** Commit only the supplied repository-relative paths, leaving unrelated staged changes intact. */
+  async commitFiles(
+    message: string,
+    paths: string[],
+    credentials?: { gitName: string; gitEmail: string },
+    log?: (s: string) => void,
+  ): Promise<void> {
+    if (!message.trim()) throw new Error('A commit message is required.');
+
+    const root = path.resolve(this.rootPath);
+    const rootPrefix = root + path.sep;
+    const uniquePaths = [...new Set(paths.map(p => p.split(path.sep).join('/')))];
+    const invalidPath = uniquePaths.find(p => {
+      if (!p || p === '.' || path.isAbsolute(p)) return true;
+      const resolved = path.resolve(root, p);
+      return resolved === root || !resolved.startsWith(rootPrefix);
+    });
+
+    if (invalidPath) throw new Error(`Cannot commit a path outside the repository: ${invalidPath}`);
+    if (uniquePaths.length === 0) throw new Error('No files selected for commit.');
+
+    const credentialArgs = credentials?.gitName && credentials?.gitEmail
+      ? ['-c', `user.name=${credentials.gitName}`, '-c', `user.email=${credentials.gitEmail}`]
+      : [];
+    const args = [
+      ...credentialArgs,
+      'commit',
+      '--only',
+      '-m', message,
+      '--',
+      ...uniquePaths,
+    ];
+
+    log?.(`GitService.commitFiles — committing ${uniquePaths.length} selected path(s)`);
+    await this.git.raw(args);
   }
 
   async getMergeRebaseState(): Promise<'merge' | 'rebase' | null> {
