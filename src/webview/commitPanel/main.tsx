@@ -1321,7 +1321,13 @@ function App() {
           ? headerCommitTargets[0]
           : undefined;
         const isAmending = amendTarget ? (store.amendFlags[amendTarget.repoId] ?? false) : false;
-        const canStashFromHeader = store.commitMessage.trim().length > 0 && headerCommitTargets.length > 0 && !store.loading && !isAmending;
+        const headerActionTargets = changesRepos.map(repo => ({
+          repoId: repo.repoId,
+          paths: store.changesViewMode === 'vscode'
+            ? (vscodeSelectedRepos.has(repo.repoId) ? repo.stagedFiles.map(file => file.path) : [])
+            : store.getSelectedFilesForRepo(repo.repoId),
+        })).filter(target => target.paths.length > 0);
+        const canChangeSelectedFiles = headerActionTargets.length > 0 && !store.loading && !isAmending;
         return (
           <div style={css.tabBar}>
             <div style={css.tabItems}>
@@ -1384,9 +1390,9 @@ function App() {
                     style={css.compactMessageInput}
                     value={store.commitMessage}
                     onChange={e => store.setCommitMessage(e.target.value)}
-                    placeholder={generatingMessage ? 'Generating commit message…' : 'Commit message (default: update)'}
+                    placeholder={generatingMessage ? 'Generating commit message…' : 'Commit / stash message (default: update)'}
                     readOnly={generatingMessage}
-                    title="Commit message; blank uses &quot;update&quot; (Cmd+Enter uses the default commit action)"
+                    title="Commit or stash message; blank uses &quot;update&quot; (Cmd+Enter uses the default commit action)"
                     onKeyDown={e => {
                       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canCommitFromHeader) {
                         e.preventDefault();
@@ -1408,14 +1414,29 @@ function App() {
                   )}
                 </div>
                 <button
-                  style={css.compactSecondaryButton(canStashFromHeader)}
-                  disabled={!canStashFromHeader}
-                  title={isAmending ? 'Not available while amending' : 'Stash selected changes'}
+                  style={css.compactSecondaryButton(canChangeSelectedFiles)}
+                  disabled={!canChangeSelectedFiles}
+                  title={isAmending ? 'Not available while amending' : 'Rollback selected changes'}
                   onClick={() => {
-                    const message = store.commitMessage.trim() || 'WIP stash';
-                    for (const repoStatus of changesRepos) {
-                      const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
-                      if (selectedPaths.length > 0) doStash(repoStatus.repoId, message, selectedPaths);
+                    const files = headerActionTargets.flatMap(target =>
+                      target.paths.map(path => ({ repoId: target.repoId, path }))
+                    );
+                    if (files.length > 0) {
+                      send({ type: 'COMMIT_DISCARD_FILES', requestId: generateId(), files } satisfies CommitToHostMsg);
+                    }
+                  }}
+                >
+                  <Codicon name="discard" />
+                  <span>Rollback</span>
+                </button>
+                <button
+                  style={css.compactSecondaryButton(canChangeSelectedFiles)}
+                  disabled={!canChangeSelectedFiles}
+                  title={isAmending ? 'Not available while amending' : 'Stash selected changes (blank message uses &quot;update&quot;)'}
+                  onClick={() => {
+                    const message = store.commitMessage.trim() || 'update';
+                    for (const target of headerActionTargets) {
+                      doStash(target.repoId, message, target.paths);
                     }
                   }}
                 >
