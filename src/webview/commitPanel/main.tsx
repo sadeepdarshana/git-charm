@@ -1125,10 +1125,10 @@ function App() {
   // ── Commit action ─────────────────────────────────────────────────────────
 
   const doCommit = (andPush: boolean) => {
-    if (!store.commitMessage.trim()) return;
     // Read fresh state at commit time to avoid stale closure values
     const freshState = useCommitStore.getState();
     const currentRepos = freshState.status?.repos ?? [];
+    const commitMessage = freshState.commitMessage.trim() || 'update';
 
     // Amend is only ever valid when exactly one repo is the commit target and that repo
     // is ahead of its upstream — the same condition that shows the Amend checkbox in
@@ -1148,7 +1148,7 @@ function App() {
       const candidates = currentRepos.filter(r => r.stagedFiles.length > 0 && selectedSet.has(r.repoId));
       const targets = candidates.map(r => ({
         repoId: r.repoId,
-        message: freshState.commitMessage,
+        message: commitMessage,
         amend: resolveAmend(r.repoId, candidates.length),
         filesToStage: [],
         filesToUnstage: [],
@@ -1183,7 +1183,7 @@ function App() {
       });
     const targets = candidates.map(r => ({
       repoId: r.repoId,
-      message: freshState.commitMessage,
+      message: commitMessage,
       amend: resolveAmend(r.repoId, candidates.length),
       filesToStage: r.filesToStage,
       filesToUnstage: r.filesToUnstage,
@@ -1315,12 +1315,12 @@ function App() {
             ? (vscodeSelectedRepos.has(r.repoId) ? r.stagedFiles.length : 0)
             : store.getSelectedFilesForRepo(r.repoId).length,
         })).filter(r => r.selectedCount > 0);
-        const canCommitFromHeader = store.commitMessage.trim().length > 0 && headerCommitTargets.length > 0 && !store.loading;
+        const canCommitFromHeader = headerCommitTargets.length > 0 && !store.loading;
         const amendTarget = headerCommitTargets.length === 1 && (headerCommitTargets[0].branch.aheadBehind?.ahead ?? 0) > 0
           ? headerCommitTargets[0]
           : undefined;
         const isAmending = amendTarget ? (store.amendFlags[amendTarget.repoId] ?? false) : false;
-        const canStashFromHeader = canCommitFromHeader && !isAmending;
+        const canStashFromHeader = store.commitMessage.trim().length > 0 && headerCommitTargets.length > 0 && !store.loading && !isAmending;
         return (
           <div style={css.tabBar}>
             <div style={css.tabItems}>
@@ -1383,9 +1383,9 @@ function App() {
                     style={css.compactMessageInput}
                     value={store.commitMessage}
                     onChange={e => store.setCommitMessage(e.target.value)}
-                    placeholder={generatingMessage ? 'Generating commit message…' : 'Commit message'}
+                    placeholder={generatingMessage ? 'Generating commit message…' : 'Commit message (default: update)'}
                     readOnly={generatingMessage}
-                    title="Commit message (Cmd+Enter to use the default commit action)"
+                    title="Commit message; blank uses &quot;update&quot; (Cmd+Enter uses the default commit action)"
                     onKeyDown={e => {
                       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canCommitFromHeader) {
                         e.preventDefault();
@@ -1422,18 +1422,18 @@ function App() {
                   <span>Stash</span>
                 </button>
                 <button
-                  style={css.compactPrimaryButton(canCommitFromHeader)}
+                  style={css.compactSecondaryButton(canCommitFromHeader)}
                   disabled={!canCommitFromHeader}
-                  title="Commit selected changes"
+                  title="Commit selected changes (blank message uses &quot;update&quot;)"
                   onClick={() => doCommit(false)}
                 >
                   <Codicon name="check" />
                   <span>Commit</span>
                 </button>
                 <button
-                  style={css.compactSecondaryButton(canCommitFromHeader)}
+                  style={css.compactPrimaryButton(canCommitFromHeader)}
                   disabled={!canCommitFromHeader}
-                  title="Commit selected changes and push"
+                  title="Commit selected changes and push (blank message uses &quot;update&quot;)"
                   onClick={() => doCommit(true)}
                 >
                   <Codicon name="cloud-upload" />
