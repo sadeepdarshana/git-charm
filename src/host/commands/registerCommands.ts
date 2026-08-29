@@ -27,6 +27,10 @@ export function registerCommands(
       logPanel.focus();
     }),
 
+    vscode.commands.registerCommand('gitcharm.toggleLogPanel', () => {
+      return logPanel.toggleVisibility();
+    }),
+
     // Show the GitCharm output channel (full error/event log)
     vscode.commands.registerCommand('gitcharm.showOutputLog', () => {
       showLogChannel();

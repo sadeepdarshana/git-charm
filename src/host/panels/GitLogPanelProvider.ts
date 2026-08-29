@@ -243,6 +243,14 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
     vscode.commands.executeCommand(`${GitLogPanelProvider.viewType}.focus`);
   }
 
+  async toggleVisibility(): Promise<void> {
+    if (this.view?.visible) {
+      await vscode.commands.executeCommand('workbench.action.closePanel');
+      return;
+    }
+    await vscode.commands.executeCommand(`${GitLogPanelProvider.viewType}.focus`);
+  }
+
   /** Focus the panel and scroll to a specific commit. */
   selectCommit(hash: string, repoId: string): void {
     this.pendingScrollHash = hash;

@@ -47,14 +47,14 @@
       "activitybar": [
         {
           "id": "gitcharm-commit",
-          "title": "GitCharm Commit",
+          "title": "Commit",
           "icon": "media/icons/git-commit.svg"
         }
       ],
       "panel": [
         {
           "id": "gitcharm-log",
-          "title": "GitCharm Log",
+          "title": "Log",
           "icon": "media/icons/git-merge.svg"
         }
       ]
@@ -64,7 +64,7 @@
         {
           "type": "webview",
           "id": "gitcharm.commitPanel",
-          "name": "GitCharm Commit",
+          "name": "Commit",
           "retainContextWhenHidden": true
         },
         {
@@ -77,7 +77,7 @@
         {
           "type": "webview",
           "id": "gitcharm.gitLog",
-          "name": "Git Log",
+          "name": "Log",
           "retainContextWhenHidden": true
         }
       ]

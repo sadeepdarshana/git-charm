@@ -9,6 +9,7 @@ import { logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
 
 export class BranchStatusBar implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
+  private logStatusBarItem: vscode.StatusBarItem;
   private statusDisposable?: vscode.Disposable;
   private branchDisposable?: vscode.Disposable;
   private configDisposable?: vscode.Disposable;
@@ -41,6 +42,20 @@ export class BranchStatusBar implements vscode.Disposable {
       role: 'button',
     };
     this.statusBarItem.show();
+
+    this.logStatusBarItem = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Left,
+      99
+    );
+    this.logStatusBarItem.name = 'GitCharm Log';
+    this.logStatusBarItem.text = '$(history)';
+    this.logStatusBarItem.command = 'gitcharm.toggleLogPanel';
+    this.logStatusBarItem.tooltip = 'Toggle GitCharm Log';
+    this.logStatusBarItem.accessibilityInformation = {
+      label: 'Toggle GitCharm Log panel',
+      role: 'button',
+    };
+    this.logStatusBarItem.show();
 
     this.statusDisposable = this.manager.onStatusChange(status => this.refresh(status));
     // Also refresh on branch change: the status change fires at 300ms and may catch
@@ -2313,6 +2328,7 @@ export class BranchStatusBar implements vscode.Disposable {
 
   dispose(): void {
     this.statusBarItem.dispose();
+    this.logStatusBarItem.dispose();
     this.statusDisposable?.dispose();
     this.branchDisposable?.dispose();
     this.configDisposable?.dispose();

@@ -4,24 +4,10 @@ import { GitProfileService, LOCAL_PROFILE_ID, GLOBAL_PROFILE_ID } from '../git/G
 import type { WorkspaceGitManager } from '../git/WorkspaceGitManager';
 
 export class ProfileStatusBar implements vscode.Disposable {
-  private statusBarItem: vscode.StatusBarItem;
-  private disposables: vscode.Disposable[] = [];
-
   constructor(
     private readonly profileService: GitProfileService,
     private readonly manager?: WorkspaceGitManager,
-  ) {
-    this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
-    this.statusBarItem.command = 'gitcharm.manageProfiles';
-    this.statusBarItem.show();
-
-    this.disposables.push(
-      this.profileService.onProfileChange(() => this.refresh()),
-      vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
-    );
-
-    this.refresh();
-  }
+  ) {}
 
   private getActiveRepoPath(): string | undefined {
     if (!this.manager) return undefined;
@@ -31,47 +17,8 @@ export class ProfileStatusBar implements vscode.Disposable {
   }
 
   refresh(): void {
-    const repoPath = this.getActiveRepoPath();
-    if (repoPath) {
-      this.refreshAsync(repoPath);
-    } else {
-      this.renderStatusBar(this.profileService.getActiveProfile(), 'active');
-    }
-  }
-
-  private async refreshAsync(repoPath: string): Promise<void> {
-    const result = await this.profileService.getEffectiveProfile(repoPath);
-    if (result) {
-      this.renderStatusBar(result.profile, result.source);
-    } else {
-      this.renderNoProfile();
-    }
-  }
-
-  private renderStatusBar(
-    profile: GitProfile | undefined,
-    source: 'active' | 'local' | 'global',
-  ): void {
-    if (!profile) { this.renderNoProfile(); return; }
-
-    let displayName: string;
-    if (profile.builtIn === 'local') {
-      displayName = 'Local';
-    } else if (profile.builtIn === 'global') {
-      displayName = 'Global';
-    } else {
-      displayName = profile.name;
-    }
-
-    const sourceBadge = source === 'local' ? ' (local)' : source === 'global' ? ' (global)' : '';
-    this.statusBarItem.text = `$(account) ${displayName}`;
-    this.statusBarItem.tooltip =
-      `GitCharm Profile: ${profile.gitName} <${profile.gitEmail}>${sourceBadge}\nClick to manage profiles`;
-  }
-
-  private renderNoProfile(): void {
-    this.statusBarItem.text = `$(account) No profile`;
-    this.statusBarItem.tooltip = 'No Git identity configured — click to set one';
+    // Profile changes are consumed by the commit panel directly. This method remains
+    // for the profile-management flows, which previously used it to refresh a status item.
   }
 
   // ── Main menu ────────────────────────────────────────────────────────────────
@@ -355,8 +302,7 @@ export class ProfileStatusBar implements vscode.Disposable {
   }
 
   dispose(): void {
-    this.statusBarItem.dispose();
-    this.disposables.forEach(d => d.dispose());
+    // No persistent UI resources; profile management remains command-driven.
   }
 }
 
