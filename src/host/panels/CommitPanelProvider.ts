@@ -58,6 +58,14 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
     this.branchStatusBar = bar;
   }
 
+  async toggleVisibility(): Promise<void> {
+    if (this.view?.visible) {
+      await vscode.commands.executeCommand('workbench.action.closePanel');
+      return;
+    }
+    await vscode.commands.executeCommand('gitcharm.commitPanel.focus');
+  }
+
   handleUndockedMessage(msg: CommitToHostMsg, _provider: UndockedPanelProvider): void {
     this.activeReplyTarget = 'undocked';
     this.handleMessage(msg, undefined as unknown as vscode.Webview).finally(() => { this.activeReplyTarget = 'sidebar'; });

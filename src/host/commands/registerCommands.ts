@@ -36,6 +36,10 @@ export function registerCommands(
       commitPanel.refresh();
     }),
 
+    vscode.commands.registerCommand('gitcharm.toggleCommitPanel', () => {
+      return commitPanel.toggleVisibility();
+    }),
+
     vscode.commands.registerCommand('gitcharm.expandCommitPanel', () => {
       commitPanel.expandAll();
     }),

@@ -32,8 +32,14 @@ export class BranchStatusBar implements vscode.Disposable {
       vscode.StatusBarAlignment.Left,
       100
     );
-    this.statusBarItem.command = 'gitcharm.showBranchMenu';
-    this.statusBarItem.tooltip = 'Git Menu';
+    this.statusBarItem.name = 'GitCharm Commit';
+    this.statusBarItem.text = '$(source-control)';
+    this.statusBarItem.command = 'gitcharm.toggleCommitPanel';
+    this.statusBarItem.tooltip = 'Toggle GitCharm Commit';
+    this.statusBarItem.accessibilityInformation = {
+      label: 'Toggle GitCharm Commit panel',
+      role: 'button',
+    };
     this.statusBarItem.show();
 
     this.statusDisposable = this.manager.onStatusChange(status => this.refresh(status));
@@ -54,35 +60,18 @@ export class BranchStatusBar implements vscode.Disposable {
     const nonWorktreeMetas = allMetas.filter(m => !m.isWorktree);
     const metas = nonWorktreeMetas.length > 0 ? nonWorktreeMetas : allMetas;
     if (allMetas.length === 0) {
-      this.statusBarItem.text = '$(git-branch) No repo';
-      this.statusBarItem.backgroundColor = undefined;
       this.hasBehind = false;
       this.branchesDiverged = false;
       this.hasUncommitted = false;
       return;
     }
 
-    const worktreeMetas = nonWorktreeMetas.length > 0 ? allMetas.filter(m => m.isWorktree) : [];
-
-    const [statusResult, worktreeBranchResults] = await Promise.all([
-      preloadedStatus ?? this.manager.getAllStatusesFresh(),
-      Promise.allSettled(worktreeMetas.map(async m => {
-        const repo = this.manager.getRepo(m.id);
-        return repo ? repo.getCurrentBranch() : null;
-      })),
-    ]);
-
-    type BranchInfo = Awaited<ReturnType<NonNullable<ReturnType<WorkspaceGitManager['getRepo']>>['getCurrentBranch']>>;
+    const statusResult = preloadedStatus ?? await this.manager.getAllStatusesFresh();
 
     const nonWorktreeIds = new Set(metas.map(m => m.id));
     const branches = statusResult.repos
       .filter(r => nonWorktreeIds.has(r.repoId))
       .map(r => r.branch);
-
-    const worktreeBranches = worktreeBranchResults
-      .filter((r): r is PromiseFulfilledResult<BranchInfo | null> => r.status === 'fulfilled')
-      .map(r => r.value)
-      .filter(Boolean) as BranchInfo[];
 
     // Use effective name: detachedTag, detachedHash, or branch name
     const effectiveNames = [...new Set(branches.map(b => b.detachedTag ?? b.detachedHash ?? b.name))];
@@ -96,53 +85,6 @@ export class BranchStatusBar implements vscode.Disposable {
       r => r.stagedFiles.length > 0 || r.unstagedFiles.length > 0
     );
 
-    const headLabel = effectiveNames.length === 1
-      ? effectiveNames[0]
-      : `${effectiveNames[0]} +${effectiveNames.length - 1}`;
-
-    // Append worktree branch names after a separator
-    const worktreeEffectiveNames = [...new Set(worktreeBranches.map(b => b.detachedTag ?? b.detachedHash ?? b.name))];
-    const worktreeSuffix = worktreeEffectiveNames.length > 0
-      ? '  |  ' + worktreeEffectiveNames.join('  |  ')
-      : '';
-
-    // Icon: git-branch on a named branch, tag on detached tag, git-commit on detached hash
-    const anyOnNamedBranch = branches.some(b => !b.detachedTag && !b.detachedHash && b.name !== 'HEAD');
-    const anyOnTag = !anyOnNamedBranch && branches.some(b => !!b.detachedTag);
-    const headIcon = anyOnNamedBranch ? '$(git-branch)' : anyOnTag ? '$(tag)' : '$(git-commit)';
-
-    const suppressDiverged = vscode.workspace.getConfiguration('gitcharm').get<boolean>('suppressDivergedBranchWarning') === true;
-    const divergeIcon = this.branchesDiverged && !suppressDiverged ? '$(warning) ' : '';
-    const dirtyDot = this.hasUncommitted ? ' ●' : '';
-    const pullPart = this.totalBehind > 0 ? ` $(arrow-down)${this.totalBehind}` : '';
-    const pushPart = this.totalAhead > 0 ? ` $(arrow-up)${this.totalAhead}` : '';
-    this.statusBarItem.text = `${divergeIcon}${headIcon} ${headLabel}${worktreeSuffix}${dirtyDot}${pullPart}${pushPart}`;
-
-    const tooltipParts: string[] = [];
-    if (this.branchesDiverged && !suppressDiverged) tooltipParts.push('Branches have diverged across repositories');
-    if (this.hasUncommitted) tooltipParts.push('Uncommitted changes present');
-    if (this.hasUnpushed) tooltipParts.push('Unpushed commits or branch not on remote');
-    if (this.hasBehind) tooltipParts.push('Incoming commits available');
-    this.statusBarItem.tooltip = tooltipParts.length > 0
-      ? `${tooltipParts.join(' · ')}`
-      : 'Git Menu';
-
-    if (this.branchesDiverged && !suppressDiverged) {
-      this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-      this.statusBarItem.color = undefined;
-    } else if (this.hasBehind) {
-      this.statusBarItem.backgroundColor = undefined;
-      this.statusBarItem.color = new vscode.ThemeColor('gitcharm.statusBarPullForeground');
-    } else if (this.hasUnpushed) {
-      this.statusBarItem.backgroundColor = undefined;
-      this.statusBarItem.color = new vscode.ThemeColor('gitcharm.statusBarPushForeground');
-    } else if (this.hasUncommitted) {
-      this.statusBarItem.backgroundColor = undefined;
-      this.statusBarItem.color = new vscode.ThemeColor('gitcharm.statusBarDirtyForeground');
-    } else {
-      this.statusBarItem.backgroundColor = undefined;
-      this.statusBarItem.color = undefined;
-    }
   }
 
   async showBranchOptions(repoId: string, branchName: string): Promise<void> {
