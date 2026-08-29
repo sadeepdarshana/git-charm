@@ -41,15 +41,7 @@ export class BranchStatusBar implements vscode.Disposable {
     selected: boolean,
     panelName: 'Commit' | 'Log'
   ): void {
-    // Status bar items do not support the Activity Bar's native selected-state
-    // background. warningBackground is the only theme-aware, non-error background
-    // VS Code's public API permits here, so use it as a persistent pressed state.
-    item.backgroundColor = selected
-      ? new vscode.ThemeColor('statusBarItem.warningBackground')
-      : undefined;
-    item.color = selected
-      ? new vscode.ThemeColor('statusBarItem.warningForeground')
-      : undefined;
+    item.color = selected ? new vscode.ThemeColor('activityBar.activeBorder') : undefined;
     item.tooltip = `${selected ? 'Hide' : 'Show'} GitCharm ${panelName}`;
     item.accessibilityInformation = {
       label: `${selected ? 'Hide' : 'Show'} GitCharm ${panelName} panel${selected ? ', selected' : ''}`,
