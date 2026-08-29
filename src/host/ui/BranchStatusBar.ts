@@ -23,7 +23,31 @@ export class BranchStatusBar implements vscode.Disposable {
 
   private logPanel?: GitLogPanelProvider;
 
-  setLogPanel(logPanel: GitLogPanelProvider): void { this.logPanel = logPanel; }
+  setLogPanel(logPanel: GitLogPanelProvider): void {
+    this.logPanel = logPanel;
+    logPanel.setBranchStatusBar(this);
+  }
+
+  setCommitPanelVisible(visible: boolean): void {
+    this.setPanelButtonSelected(this.statusBarItem, visible, 'Commit');
+  }
+
+  setLogPanelVisible(visible: boolean): void {
+    this.setPanelButtonSelected(this.logStatusBarItem, visible, 'Log');
+  }
+
+  private setPanelButtonSelected(
+    item: vscode.StatusBarItem,
+    selected: boolean,
+    panelName: 'Commit' | 'Log'
+  ): void {
+    item.color = selected ? new vscode.ThemeColor('activityBar.activeBorder') : undefined;
+    item.tooltip = `${selected ? 'Hide' : 'Show'} GitCharm ${panelName}`;
+    item.accessibilityInformation = {
+      label: `${selected ? 'Hide' : 'Show'} GitCharm ${panelName} panel${selected ? ', selected' : ''}`,
+      role: 'button',
+    };
+  }
 
   constructor(
     private readonly manager: WorkspaceGitManager,

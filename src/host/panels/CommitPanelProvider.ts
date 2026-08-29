@@ -363,12 +363,15 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
       'GitCharm Commit'
     );
 
+    this.branchStatusBar?.setCommitPanelVisible(webviewView.visible);
+
     webviewView.webview.onDidReceiveMessage((msg: CommitToHostMsg) =>
       this.handleMessage(msg, webviewView.webview)
     );
 
     // Refresh status whenever the panel becomes visible (e.g. user switches to it)
     webviewView.onDidChangeVisibility(() => {
+      this.branchStatusBar?.setCommitPanelVisible(webviewView.visible);
       if (webviewView.visible) {
         this.postRepoFilterState();
         this.manager.getAllStatuses().then(status => {
@@ -429,7 +432,11 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    webviewView.onDidDispose(() => { configWatcher.dispose(); tabWatcher.dispose(); });
+    webviewView.onDidDispose(() => {
+      this.branchStatusBar?.setCommitPanelVisible(false);
+      configWatcher.dispose();
+      tabWatcher.dispose();
+    });
   }
 
   private async refreshActiveProfile(): Promise<void> {

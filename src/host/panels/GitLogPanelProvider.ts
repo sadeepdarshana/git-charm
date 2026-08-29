@@ -6,6 +6,7 @@ import type { LogToHostMsg, HostToLogMsg } from '../types/messages';
 import type { BranchInfo } from '../types/git';
 import { loadIconTheme } from '../utils/IconThemeService';
 import type { CommitPanelProvider } from './CommitPanelProvider';
+import type { BranchStatusBar } from '../ui/BranchStatusBar';
 import type { UndockedPanelProvider } from './UndockedPanelProvider';
 import { openSquashEditor } from './SquashEditorPanel';
 import { openEditMessageEditor } from './EditMessageEditorPanel';
@@ -83,6 +84,7 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
   private readonly managerListeners: vscode.Disposable[] = [];
   private refreshDebounce: ReturnType<typeof setTimeout> | null = null;
   private commitPanel?: CommitPanelProvider;
+  private branchStatusBar?: BranchStatusBar;
   private undockedPanel?: UndockedPanelProvider;
   private hiddenRepoIds: string[] = [];
   private pendingFilterRepoId: string | null = null;
@@ -94,6 +96,10 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
 
   setCommitPanel(provider: CommitPanelProvider): void {
     this.commitPanel = provider;
+  }
+
+  setBranchStatusBar(bar: BranchStatusBar): void {
+    this.branchStatusBar = bar;
   }
 
   setUndockedPanel(provider: UndockedPanelProvider): void {
@@ -173,6 +179,8 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
       'Git Log'
     );
 
+    this.branchStatusBar?.setLogPanelVisible(webviewView.visible);
+
     webviewView.webview.onDidReceiveMessage(
       (msg: LogToHostMsg) => this.handleMessage(msg),
       null,
@@ -192,6 +200,7 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
     );
 
     webviewView.onDidChangeVisibility(() => {
+      this.branchStatusBar?.setLogPanelVisible(webviewView.visible);
       if (!webviewView.visible) return;
       if (this.pendingFilterRepoId !== null) {
         const repoId = this.pendingFilterRepoId;
@@ -231,6 +240,7 @@ export class GitLogPanelProvider implements vscode.WebviewViewProvider, vscode.D
     });
 
     webviewView.onDidDispose(() => {
+      this.branchStatusBar?.setLogPanelVisible(false);
       this.view = undefined;
       tabWatcher.dispose();
       this.disposables.forEach(d => d.dispose());
