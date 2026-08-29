@@ -9,6 +9,7 @@ import { ShelvePanel } from './components/ShelvePanel';
 import { StashTab } from './components/StashTab';
 import { PushTab } from './components/PushTab';
 import { WorktreePanel } from './components/WorktreePanel';
+import { RepositoryOverview } from './components/RepositoryOverview';
 import { getVsCodeApi } from '../shared/vscodeApi';
 import { Codicon } from '../shared/Codicon';
 import { ScrollArea } from '../shared/ScrollArea';
@@ -1448,7 +1449,9 @@ function App() {
       {/* ── Tab content ── */}
       <div style={css.main}>
 
-        {activeTab === 'changes' && (<>
+        {activeTab === 'changes' && (
+          <div style={css.changesSplit}>
+            <div style={css.changesPrimaryPane}>
 
           {/* File list */}
           <ScrollArea style={css.repoList}>
@@ -1688,8 +1691,17 @@ function App() {
               </button>
             </div>
           )}
+            </div>
 
-        </>)}
+            <RepositoryOverview
+              repos={repos}
+              repoMetas={store.repoMetas}
+              onBranchClick={repoId => send({ type: 'COMMIT_SHOW_BRANCH_MENU', repoId })}
+              onOpenLog={repoId => send({ type: 'COMMIT_VIEW_GIT_LOG', repoId })}
+              onContextMenu={(event, repoId) => setRepoCtxMenu({ x: event.clientX, y: event.clientY, repoId })}
+            />
+          </div>
+        )}
 
         {activeTab === 'shelf' && (
           /* Shelf tab */
@@ -2219,6 +2231,8 @@ const css = {
     cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4,
   }),
   main: { display: 'flex', flexDirection: 'column' as const, flex: 1, overflow: 'hidden' },
+  changesSplit: { display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
+  changesPrimaryPane: { display: 'flex', flexDirection: 'column' as const, flex: 1, minWidth: 0, minHeight: 0 },
   repoList: { flex: 1, minHeight: 0 },
   filteredEmptyState: {
     display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '10px',
