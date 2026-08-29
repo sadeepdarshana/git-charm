@@ -1476,15 +1476,7 @@ function App() {
 
           {/* File list */}
           <ScrollArea style={css.repoList}>
-            {showOnlyChangedRepos && changesRepos.length === 0 ? (
-              <div style={css.filteredEmptyState}>
-                <Codicon name="filter" style={{ fontSize: '18px', opacity: 0.55 }} />
-                <div>No repositories with changes</div>
-                <button style={css.clearFilterBtn} onClick={() => setRepoFilter(false)}>
-                  Show all repositories
-                </button>
-              </div>
-            ) : store.changesViewMode === 'vscode' ? (
+            {showOnlyChangedRepos && changesRepos.length === 0 ? null : store.changesViewMode === 'vscode' ? (
               <VscodeView
                 repos={changesRepos}
                 repoMetas={store.repoMetas}
@@ -2255,17 +2247,6 @@ const css = {
   changesSplit: { display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
   changesPrimaryPane: { display: 'flex', flexDirection: 'column' as const, flex: 1, minWidth: 0, minHeight: 0 },
   repoList: { flex: 1, minHeight: 0 },
-  filteredEmptyState: {
-    display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '10px',
-    padding: '32px 16px', color: 'var(--vscode-foreground)', opacity: 0.7,
-    fontSize: '12px', textAlign: 'center' as const,
-  } as React.CSSProperties,
-  clearFilterBtn: {
-    background: 'var(--vscode-button-secondaryBackground, var(--vscode-button-background))',
-    color: 'var(--vscode-button-secondaryForeground, var(--vscode-button-foreground))',
-    border: 'none', borderRadius: '3px', padding: '4px 9px', cursor: 'pointer',
-    fontSize: '11px',
-  } as React.CSSProperties,
   // Shelve name prompt bar (above commit form)
   detachedBanner: {
     display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px',
