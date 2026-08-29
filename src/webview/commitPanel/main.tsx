@@ -4,7 +4,6 @@ import { useCommitStore } from './store/commitStore';
 import { ProjectGroup } from './components/ProjectGroup';
 import { ChangelistView } from './components/ChangelistView';
 import { VscodeView } from './components/VscodeView';
-import { UnifiedCommitForm } from './components/UnifiedCommitForm';
 import { ContextMenu, type ContextMenuEntry } from './components/ContextMenu';
 import { ShelvePanel } from './components/ShelvePanel';
 import { StashTab } from './components/StashTab';
@@ -1310,44 +1309,138 @@ function App() {
           const paths = new Set([...r.stagedFiles.map(f => f.path), ...r.unstagedFiles.map(f => f.path)]);
           return sum + paths.size;
         }, 0);
+        const headerCommitTargets = changesRepos.map(r => ({
+          ...r,
+          selectedCount: store.changesViewMode === 'vscode'
+            ? (vscodeSelectedRepos.has(r.repoId) ? r.stagedFiles.length : 0)
+            : store.getSelectedFilesForRepo(r.repoId).length,
+        })).filter(r => r.selectedCount > 0);
+        const canCommitFromHeader = store.commitMessage.trim().length > 0 && headerCommitTargets.length > 0 && !store.loading;
+        const amendTarget = headerCommitTargets.length === 1 && (headerCommitTargets[0].branch.aheadBehind?.ahead ?? 0) > 0
+          ? headerCommitTargets[0]
+          : undefined;
+        const isAmending = amendTarget ? (store.amendFlags[amendTarget.repoId] ?? false) : false;
+        const canStashFromHeader = canCommitFromHeader && !isAmending;
         return (
           <div style={css.tabBar}>
-            {(['changes', 'shelf', 'stash', 'worktree', 'push'] as TabId[]).map(tab => {
-              const changesLabel = (store.changesViewMode === 'changelists' || store.changesViewMode === 'vscode') ? 'Commit' : 'Changes';
-              const label = tab === 'changes' ? changesLabel : tab === 'shelf' ? 'Shelf' : tab === 'stash' ? 'Stash' : tab === 'worktree' ? 'Worktrees' : 'Push';
-              const iconName = tab === 'changes' ? 'source-control' : tab === 'shelf' ? 'archive' : tab === 'stash' ? 'git-stash' : tab === 'worktree' ? 'worktree' : 'cloud-upload';
-              return (
+            <div style={css.tabItems}>
+              {(['changes', 'shelf', 'stash', 'worktree', 'push'] as TabId[]).map(tab => {
+                const changesLabel = (store.changesViewMode === 'changelists' || store.changesViewMode === 'vscode') ? 'Commit' : 'Changes';
+                const label = tab === 'changes' ? changesLabel : tab === 'shelf' ? 'Shelf' : tab === 'stash' ? 'Stash' : tab === 'worktree' ? 'Worktrees' : 'Push';
+                const iconName = tab === 'changes' ? 'source-control' : tab === 'shelf' ? 'archive' : tab === 'stash' ? 'git-stash' : tab === 'worktree' ? 'worktree' : 'cloud-upload';
+                return (
+                  <button
+                    key={tab}
+                    style={css.tab(activeTab === tab)}
+                    title={label}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      send({ type: 'COMMIT_ACTIVE_TAB_CHANGED', tab });
+                      if (tab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
+                      if (tab === 'stash') repos.forEach(r => requestStashList(r.repoId));
+                      if (tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
+                      if (tab === 'worktree') requestWorktreeList();
+                    }}
+                  >
+                    <Codicon
+                      name={iconName}
+                      style={{ marginRight: activeTab === tab ? '5px' : '0', fontSize: '13px', transition: 'margin 0.15s' }}
+                    />
+                    {activeTab === tab && (
+                      <span style={{ animation: 'gs-tab-label-in 0.18s ease-out both', overflow: 'hidden', display: 'inline-block' }}>
+                        {label}
+                      </span>
+                    )}
+                    {tab === 'changes' && totalChanges > 0 && (
+                      <span style={css.pushBadge}>{totalChanges}</span>
+                    )}
+                    {tab === 'push' && totalToPush > 0 && (
+                      <span style={css.pushBadge}>{totalToPush}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {activeTab === 'changes' && (
+              <div style={css.compactCommitBar}>
+                {amendTarget && (
+                  <label style={css.compactAmend} title="Modify the last unpushed commit">
+                    <input
+                      type="checkbox"
+                      className="gitcharm-subtle-checkbox"
+                      checked={isAmending}
+                      onChange={() => {
+                        const next = !isAmending;
+                        store.setAmend(amendTarget.repoId, next);
+                        if (next) send({ type: 'COMMIT_GET_LAST_COMMIT_MESSAGE', requestId: generateId(), repoId: amendTarget.repoId } satisfies CommitToHostMsg);
+                      }}
+                    />
+                    <span>Amend</span>
+                  </label>
+                )}
+                <div style={css.compactMessageWrap}>
+                  <input
+                    style={css.compactMessageInput}
+                    value={store.commitMessage}
+                    onChange={e => store.setCommitMessage(e.target.value)}
+                    placeholder={generatingMessage ? 'Generating commit message…' : 'Commit message'}
+                    readOnly={generatingMessage}
+                    title="Commit message (Cmd+Enter to use the default commit action)"
+                    onKeyDown={e => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canCommitFromHeader) {
+                        e.preventDefault();
+                        doCommit(store.defaultCommitAction === 'commitAndPush');
+                      }
+                    }}
+                  />
+                  {store.aiEnabled && (
+                    <button
+                      data-action-btn=""
+                      style={css.compactAiButton}
+                      onClick={doAutopilot}
+                      onContextMenu={doAutopilotContextMenu}
+                      disabled={generatingMessage}
+                      title="Generate commit message with AI (right-click for options)"
+                    >
+                      <Codicon name={generatingMessage ? 'loading~spin' : 'sparkle'} />
+                    </button>
+                  )}
+                </div>
                 <button
-                  key={tab}
-                  style={css.tab(activeTab === tab)}
-                  title={label}
+                  style={css.compactSecondaryButton(canStashFromHeader)}
+                  disabled={!canStashFromHeader}
+                  title={isAmending ? 'Not available while amending' : 'Stash selected changes'}
                   onClick={() => {
-                    setActiveTab(tab);
-                    send({ type: 'COMMIT_ACTIVE_TAB_CHANGED', tab });
-                    if (tab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
-                    if (tab === 'stash') repos.forEach(r => requestStashList(r.repoId));
-                    if (tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
-                    if (tab === 'worktree') requestWorktreeList();
+                    const message = store.commitMessage.trim() || 'WIP stash';
+                    for (const repoStatus of changesRepos) {
+                      const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
+                      if (selectedPaths.length > 0) doStash(repoStatus.repoId, message, selectedPaths);
+                    }
                   }}
                 >
-                  <Codicon
-                    name={iconName}
-                    style={{ marginRight: activeTab === tab ? '5px' : '0', fontSize: '13px', transition: 'margin 0.15s' }}
-                  />
-                  {activeTab === tab && (
-                    <span style={{ animation: 'gs-tab-label-in 0.18s ease-out both', overflow: 'hidden', display: 'inline-block' }}>
-                      {label}
-                    </span>
-                  )}
-                  {tab === 'changes' && totalChanges > 0 && (
-                    <span style={css.pushBadge}>{totalChanges}</span>
-                  )}
-                  {tab === 'push' && totalToPush > 0 && (
-                    <span style={css.pushBadge}>{totalToPush}</span>
-                  )}
+                  <Codicon name="git-stash" />
+                  <span>Stash</span>
                 </button>
-              );
-            })}
+                <button
+                  style={css.compactPrimaryButton(canCommitFromHeader)}
+                  disabled={!canCommitFromHeader}
+                  title="Commit selected changes"
+                  onClick={() => doCommit(false)}
+                >
+                  <Codicon name="check" />
+                  <span>Commit</span>
+                </button>
+                <button
+                  style={css.compactSecondaryButton(canCommitFromHeader)}
+                  disabled={!canCommitFromHeader}
+                  title="Commit selected changes and push"
+                  onClick={() => doCommit(true)}
+                >
+                  <Codicon name="cloud-upload" />
+                  <span>Commit &amp; Push</span>
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -1595,66 +1688,6 @@ function App() {
               </button>
             </div>
           )}
-
-          {/* Commit form */}
-          <UnifiedCommitForm
-            message={store.commitMessage}
-            repoStatuses={changesRepos}
-            repoMetas={store.repoMetas}
-            amendFlags={store.amendFlags}
-            loading={store.loading}
-            changesViewMode={store.changesViewMode}
-            defaultCommitAction={store.defaultCommitAction}
-            defaultSaveAction={store.defaultSaveAction}
-            vscodeSelectedRepos={store.changesViewMode === 'vscode' ? vscodeSelectedRepos : undefined}
-            getSelectedFilesForRepo={store.getSelectedFilesForRepo}
-            onDeselectRepo={repoId => {
-              if (store.changesViewMode === 'vscode') {
-                toggleVscodeRepoSelection(repoId);
-              } else {
-                const r = changesRepos.find(r => r.repoId === repoId);
-                if (!r) return;
-                const allPaths = [...r.stagedFiles, ...r.unstagedFiles].map(f => f.path);
-                store.setFileSelections(repoId, allPaths, false);
-              }
-            }}
-            onMessageChange={msg => store.setCommitMessage(msg)}
-            onAmendToggle={repoId => {
-              const newValue = !(store.amendFlags[repoId] ?? false);
-              store.setAmend(repoId, newValue);
-              if (newValue) {
-                send({ type: 'COMMIT_GET_LAST_COMMIT_MESSAGE', requestId: generateId(), repoId } satisfies CommitToHostMsg);
-              }
-            }}
-            onCommit={() => doCommit(false)}
-            onCommitAndPush={() => doCommit(true)}
-            onPush={doPush}
-            onPushAll={doPushAll}
-            aiEnabled={store.aiEnabled}
-            onAutopilot={doAutopilot}
-            onAutopilotContextMenu={doAutopilotContextMenu}
-            generatingMessage={generatingMessage}
-            activeProfile={store.activeProfile}
-            onOpenProfiles={() => send({ type: 'OPEN_PROFILES_MENU' } satisfies CommitToHostMsg)}
-            onShelve={() => {
-              const name = store.commitMessage.trim();
-              if (!name) return;
-              for (const repoStatus of changesRepos) {
-                const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
-                if (selectedPaths.length === 0) continue;
-                confirmShelve(repoStatus.repoId, name, selectedPaths);
-              }
-              store.setCommitMessage('');
-            }}
-            onStash={() => {
-              const message = store.commitMessage.trim() || 'WIP stash';
-              for (const repoStatus of changesRepos) {
-                const selectedPaths = store.getSelectedFilesForRepo(repoStatus.repoId);
-                if (selectedPaths.length === 0) continue;
-                doStash(repoStatus.repoId, message, selectedPaths);
-              }
-            }}
-          />
 
         </>)}
 
@@ -2116,8 +2149,12 @@ const css = {
     fontSize: '13px', borderRadius: '2px',
   } as React.CSSProperties,
   tabBar: {
-    display: 'flex', borderBottom: '1px solid var(--vscode-panel-border)',
+    display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--vscode-panel-border)',
     background: 'var(--vscode-sideBar-background)', flexShrink: 0,
+    overflow: 'hidden' as const, minWidth: 0,
+  } as React.CSSProperties,
+  tabItems: {
+    display: 'flex', alignSelf: 'stretch', flexShrink: 1, minWidth: 0,
     overflowX: 'auto' as const, overflowY: 'hidden' as const,
   } as React.CSSProperties,
   tab: (active: boolean): React.CSSProperties => ({
@@ -2141,6 +2178,46 @@ const css = {
     marginLeft: '5px',
     flexShrink: 0,
   } as React.CSSProperties,
+  compactCommitBar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px',
+    flex: '1 1 520px', minWidth: '360px', padding: '3px 6px', marginLeft: 'auto',
+    borderLeft: '1px solid var(--vscode-panel-border)',
+  } as React.CSSProperties,
+  compactAmend: {
+    display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+    fontSize: '11px', whiteSpace: 'nowrap' as const, opacity: 0.8, cursor: 'pointer',
+  } as React.CSSProperties,
+  compactMessageWrap: {
+    position: 'relative' as const, flex: '1 1 280px', minWidth: '140px', maxWidth: '460px',
+  },
+  compactMessageInput: {
+    width: '100%', height: '28px', boxSizing: 'border-box' as const,
+    padding: '3px 30px 3px 8px', borderRadius: '3px',
+    border: '1px solid var(--vscode-input-border, var(--vscode-panel-border))',
+    background: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)',
+    fontFamily: 'var(--vscode-font-family)', fontSize: '12px', outline: 'none',
+  } as React.CSSProperties,
+  compactAiButton: {
+    position: 'absolute' as const, top: '2px', right: '2px', width: '24px', height: '24px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+    border: 'none', borderRadius: '3px', background: 'transparent',
+    color: 'var(--vscode-input-foreground)', cursor: 'pointer', opacity: 0.7,
+  } as React.CSSProperties,
+  compactPrimaryButton: (enabled: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px',
+    border: '1px solid var(--vscode-button-border, transparent)', borderRadius: '3px',
+    background: 'var(--vscode-button-background)', color: 'var(--vscode-button-foreground)',
+    fontFamily: 'var(--vscode-font-family)', fontSize: '12px', whiteSpace: 'nowrap',
+    cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4,
+  }),
+  compactSecondaryButton: (enabled: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 9px',
+    border: '1px solid var(--vscode-button-border, var(--vscode-panel-border))', borderRadius: '3px',
+    background: 'var(--vscode-button-secondaryBackground, transparent)',
+    color: 'var(--vscode-button-secondaryForeground, var(--vscode-foreground))',
+    fontFamily: 'var(--vscode-font-family)', fontSize: '12px', whiteSpace: 'nowrap',
+    cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4,
+  }),
   main: { display: 'flex', flexDirection: 'column' as const, flex: 1, overflow: 'hidden' },
   repoList: { flex: 1, minHeight: 0 },
   filteredEmptyState: {
