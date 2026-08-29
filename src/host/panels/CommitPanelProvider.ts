@@ -35,6 +35,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   private badgeController?: import('../ui/BadgeController').BadgeController;
   // When set, post() sends to the undocked panel instead of the sidebar
   private activeReplyTarget: 'sidebar' | 'undocked' = 'sidebar';
+  private activeTab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push' = 'changes';
   private cachedActiveProfile?: { name: string; gitName: string; gitEmail: string; builtIn?: 'local' | 'global' };
 
   setMergeEditorProvider(provider: MergeEditorProvider): void {
@@ -268,6 +269,9 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
     private readonly globalState?: vscode.Memento,
     private readonly workspaceState?: vscode.Memento
   ) {
+    void vscode.commands.executeCommand('setContext', 'gitcharm.commitPanelActiveTab', this.activeTab);
+    void vscode.commands.executeCommand('setContext', 'gitcharm.showOnlyChangedRepos', this.getShowOnlyChangedRepos());
+
     this.manager.onStatusChange(async (status) => {
       await this.refreshActiveProfile();
       this.postChangelistsUpdate(status);
@@ -467,7 +471,39 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   }
 
   switchToTab(tab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push'): void {
+    this.setActiveTab(tab);
     this.post({ type: 'COMMIT_SWITCH_TAB', tab });
+  }
+
+  expandAll(): void {
+    this.broadcastCommit({ type: 'COMMIT_EXPAND_ALL' });
+  }
+
+  collapseAll(): void {
+    this.broadcastCommit({ type: 'COMMIT_COLLAPSE_ALL' });
+  }
+
+  async showViewOptions(): Promise<void> {
+    const currentMode = this.getFileViewMode();
+    const picked = await vscode.window.showQuickPick(
+      [
+        { label: '$(list-unordered) Flat list', mode: 'flat' as const, description: currentMode === 'flat' ? 'Current' : undefined },
+        { label: '$(list-tree) Tree view', mode: 'tree' as const, description: currentMode === 'tree' ? 'Current' : undefined },
+      ],
+      { title: 'GitCharm — View', placeHolder: 'Choose how changed files are displayed' },
+    );
+    if (!picked) return;
+    await this.globalState?.update('fileViewMode', picked.mode);
+    this.broadcastCommit({ type: 'COMMIT_SET_VIEW_MODE', mode: picked.mode });
+  }
+
+  async toggleChangedRepositoriesFilter(): Promise<void> {
+    await this.setShowOnlyChangedRepos(!this.getShowOnlyChangedRepos());
+  }
+
+  private setActiveTab(tab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push'): void {
+    this.activeTab = tab;
+    void vscode.commands.executeCommand('setContext', 'gitcharm.commitPanelActiveTab', tab);
   }
 
   /** Reads fresh status after a stage/unstage op. simple-git reads directly from the git index so it's always accurate once the op completes. */
@@ -488,7 +524,9 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private postRepoFilterState(): void {
-    this.post({ type: 'COMMIT_REPO_FILTER_UPDATE', showOnlyChangedRepos: this.getShowOnlyChangedRepos() });
+    const showOnlyChangedRepos = this.getShowOnlyChangedRepos();
+    void vscode.commands.executeCommand('setContext', 'gitcharm.showOnlyChangedRepos', showOnlyChangedRepos);
+    this.post({ type: 'COMMIT_REPO_FILTER_UPDATE', showOnlyChangedRepos });
   }
 
   private async setShowOnlyChangedRepos(showOnlyChangedRepos: boolean): Promise<void> {
@@ -2044,6 +2082,11 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
 
       case 'COMMIT_SET_FILE_VIEW_MODE': {
         await this.globalState?.update('fileViewMode', msg.mode);
+        break;
+      }
+
+      case 'COMMIT_ACTIVE_TAB_CHANGED': {
+        this.setActiveTab(msg.tab);
         break;
       }
 

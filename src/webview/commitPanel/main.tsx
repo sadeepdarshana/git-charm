@@ -429,9 +429,7 @@ function App() {
   const [generatingMessage, setGeneratingMessage]   = useState(false);
 
   // ── Dropdowns ─────────────────────────────────────────────────────────────
-  const [viewMenuOpen, setViewMenuOpen]             = useState(false);
   const [shelveViewMenuOpen, setShelveViewMenuOpen] = useState(false);
-  const viewMenuRef       = useRef<HTMLDivElement>(null);
   const shelveViewMenuRef = useRef<HTMLDivElement>(null);
 
   // ── Selected file (highlighted when diff is open or on right-click) ──────
@@ -464,7 +462,6 @@ function App() {
   // Close view-menus on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) setViewMenuOpen(false);
       if (shelveViewMenuRef.current && !shelveViewMenuRef.current.contains(e.target as Node)) setShelveViewMenuOpen(false);
     };
     document.addEventListener('mousedown', h, true);
@@ -494,6 +491,15 @@ function App() {
       switch (msg.type) {
         case 'COMMIT_REPO_FILTER_UPDATE':
           setShowOnlyChangedRepos(msg.showOnlyChangedRepos);
+          break;
+        case 'COMMIT_EXPAND_ALL':
+          useCommitStore.getState().expandAll();
+          break;
+        case 'COMMIT_COLLAPSE_ALL':
+          useCommitStore.getState().collapseAll();
+          break;
+        case 'COMMIT_SET_VIEW_MODE':
+          useCommitStore.getState().setViewMode(msg.mode);
           break;
         case 'COMMIT_STATUS_UPDATE':
           store.setStatus(msg.repos, msg.status, msg.iconTheme, msg.fileViewMode, msg.defaultCommitAction, msg.defaultSaveAction, msg.hasWorkspaceFolder, msg.aiEnabled, msg.activeProfile);
@@ -1197,51 +1203,9 @@ function App() {
     <div style={css.app} onContextMenu={e => e.preventDefault()}>
 
       {/* ── Toolbar ── */}
+      {(activeTab === 'shelf' || activeTab === 'stash' || hiddenRepoIds.length > 0) && (
       <div style={css.toolbar}>
         <div style={css.toolbarLeft}>
-          <button data-action-btn="" style={css.iconBtn} title="Refresh" onClick={() => send({ type: 'COMMIT_REQUEST_STATUS' })}>
-            <Codicon name="refresh" />
-          </button>
-          {activeTab === 'changes' && (<>
-            <button data-action-btn="" style={css.iconBtn} title="Expand all" onClick={() => store.expandAll()}>
-              <Codicon name="expand-all" />
-            </button>
-            <button data-action-btn="" style={css.iconBtn} title="Collapse all" onClick={() => store.collapseAll()}>
-              <Codicon name="collapse-all" />
-            </button>
-            <div ref={viewMenuRef} style={{ position: 'relative' }}>
-              <button data-action-btn="" style={css.iconBtn} title="View options" onClick={() => setViewMenuOpen(o => !o)}>
-                <Codicon name="eye" />
-              </button>
-              {viewMenuOpen && (
-                <div style={{ ...css.dropdownPanel, left: 0 }}>
-                  <div style={css.dropdownTitle}>View</div>
-                  {(['flat', 'tree'] as const).map(mode => (
-                    <div
-                      key={mode}
-                      style={{ ...css.dropdownItem, fontWeight: store.viewMode === mode ? 'bold' : 'normal' }}
-                      onClick={() => { store.setViewMode(mode); send({ type: 'COMMIT_SET_FILE_VIEW_MODE', mode }); setViewMenuOpen(false); }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--vscode-list-hoverBackground)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <Codicon name={mode === 'flat' ? 'list-unordered' : 'list-tree'} style={{ marginRight: '6px' }} />
-                      {mode === 'flat' ? 'Flat list' : 'Tree view'}
-                      {store.viewMode === mode && <Codicon name="check" style={{ marginLeft: 'auto' }} />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button
-              data-action-btn=""
-              style={{ ...css.iconBtn, ...(showOnlyChangedRepos ? css.activeIconBtn : {}) }}
-              title={showOnlyChangedRepos ? 'Show all repositories' : 'Show only repositories with changes'}
-              aria-pressed={showOnlyChangedRepos}
-              onClick={() => setRepoFilter(!showOnlyChangedRepos)}
-            >
-              <Codicon name="filter" />
-            </button>
-          </>)}
           {activeTab === 'shelf' && (<>
             <button data-action-btn="" style={css.iconBtn} title="Expand all" onClick={() => {
               const allShelves = Object.values(shelveMap).flat();
@@ -1334,6 +1298,7 @@ function App() {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Tab bar ── */}
       {(() => {
@@ -1358,6 +1323,7 @@ function App() {
                   title={label}
                   onClick={() => {
                     setActiveTab(tab);
+                    send({ type: 'COMMIT_ACTIVE_TAB_CHANGED', tab });
                     if (tab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
                     if (tab === 'stash') repos.forEach(r => requestStashList(r.repoId));
                     if (tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
@@ -2116,11 +2082,6 @@ const css = {
     background: 'transparent', border: 'none', color: 'var(--vscode-foreground)',
     cursor: 'pointer', padding: '4px 5px', borderRadius: '3px',
     fontSize: '14px', display: 'flex', alignItems: 'center', opacity: 0.8,
-  } as React.CSSProperties,
-  activeIconBtn: {
-    background: 'var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground))',
-    color: 'var(--vscode-textLink-foreground, var(--vscode-foreground))',
-    opacity: 1,
   } as React.CSSProperties,
   dropdownPanel: {
     position: 'absolute' as const, top: '100%', left: 0, zIndex: 1000,

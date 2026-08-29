@@ -139,6 +139,30 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "gitcharm.expandCommitPanel",
+        "title": "Expand All",
+        "category": "GitCharm",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "gitcharm.collapseCommitPanel",
+        "title": "Collapse All",
+        "category": "GitCharm",
+        "icon": "$(collapse-all)"
+      },
+      {
+        "command": "gitcharm.showCommitPanelViewOptions",
+        "title": "View Options",
+        "category": "GitCharm",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "gitcharm.toggleChangedRepositoriesFilter",
+        "title": "Toggle Repositories with Changes Filter",
+        "category": "GitCharm",
+        "icon": "$(filter)"
+      },
+      {
         "command": "gitcharm.reloadRepositories",
         "title": "Reload Repositories",
         "category": "GitCharm",
@@ -287,71 +311,121 @@
     "menus": {
       "view/title": [
         {
-          "command": "gitcharm.fetchAll",
+          "command": "gitcharm.refreshCommitPanel",
           "when": "view == gitcharm.commitPanel",
           "group": "navigation@1"
         },
         {
+          "command": "gitcharm.expandCommitPanel",
+          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitcharm.collapseCommitPanel",
+          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@3"
+        },
+        {
+          "command": "gitcharm.showCommitPanelViewOptions",
+          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitcharm.toggleChangedRepositoriesFilter",
+          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@5"
+        },
+        {
+          "command": "gitcharm.fetchAll",
+          "when": "view == gitcharm.commitPanel",
+          "group": "navigation@6"
+        },
+        {
           "command": "gitcharm.updateProject",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@2"
+          "group": "navigation@7"
         },
         {
           "command": "gitcharm.push",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@3"
+          "group": "navigation@8"
         },
         {
           "command": "gitcharm.syncAll",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@4"
+          "group": "navigation@9"
         },
         {
           "command": "gitcharm.showBranchMenu",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@5"
+          "group": "navigation@10"
         },
         {
           "command": "gitcharm.openLog",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@6"
+          "group": "navigation@11"
         },
         {
           "command": "gitcharm.openSettings",
           "when": "view == gitcharm.commitPanel",
-          "group": "navigation@7"
+          "group": "navigation@12"
         }
       ],
       "editor/title": [
         {
-          "command": "gitcharm.fetchAll",
+          "command": "gitcharm.refreshCommitPanel",
           "when": "activeWebviewPanelId == gitcharm.undocked",
           "group": "navigation@1"
         },
         {
+          "command": "gitcharm.expandCommitPanel",
+          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitcharm.collapseCommitPanel",
+          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@3"
+        },
+        {
+          "command": "gitcharm.showCommitPanelViewOptions",
+          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitcharm.toggleChangedRepositoriesFilter",
+          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
+          "group": "navigation@5"
+        },
+        {
+          "command": "gitcharm.fetchAll",
+          "when": "activeWebviewPanelId == gitcharm.undocked",
+          "group": "navigation@6"
+        },
+        {
           "command": "gitcharm.updateProject",
           "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@2"
+          "group": "navigation@7"
         },
         {
           "command": "gitcharm.push",
           "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@3"
+          "group": "navigation@8"
         },
         {
           "command": "gitcharm.syncAll",
           "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@4"
+          "group": "navigation@9"
         },
         {
           "command": "gitcharm.showBranchMenu",
           "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@5"
+          "group": "navigation@10"
         },
         {
           "command": "gitcharm.openSettings",
           "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@6"
+          "group": "navigation@11"
         }
       ],
       "scm/sourceControl": [

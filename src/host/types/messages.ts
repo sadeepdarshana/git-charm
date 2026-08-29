@@ -89,6 +89,9 @@ export type HostToCommitMsg =
   | { type: 'COMMIT_HIDDEN_REPOS_UPDATE'; hiddenRepoIds: string[] }
   | { type: 'COMMIT_REPO_FILTER_UPDATE'; showOnlyChangedRepos: boolean }
   | { type: 'COMMIT_SWITCH_TAB'; tab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push' }
+  | { type: 'COMMIT_EXPAND_ALL' }
+  | { type: 'COMMIT_COLLAPSE_ALL' }
+  | { type: 'COMMIT_SET_VIEW_MODE'; mode: 'flat' | 'tree' }
   | { type: 'COMMIT_DESELECT_FILE'; filePath: string };
 
 // ─── Commit Panel: WebView → Host ────────────────────────────────────────────
@@ -161,6 +164,7 @@ export type CommitToHostMsg =
   | { type: 'CHANGELISTS_SHELVE'; changelistId: string; requestId: string }
   | { type: 'CHANGELISTS_STASH'; changelistId: string; requestId: string }
   | { type: 'COMMIT_SET_FILE_VIEW_MODE'; mode: 'flat' | 'tree' }
+  | { type: 'COMMIT_ACTIVE_TAB_CHANGED'; tab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push' }
   | { type: 'COMMIT_SET_REPO_FILTER'; showOnlyChangedRepos: boolean }
   | { type: 'SUBMODULE_INIT'; requestId: string; parentRepoId: string; submodulePath: string }
   | { type: 'SUBMODULE_DEINIT'; requestId: string; parentRepoId: string; submodulePath: string; force?: boolean }

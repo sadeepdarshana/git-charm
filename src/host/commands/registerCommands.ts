@@ -36,6 +36,22 @@ export function registerCommands(
       commitPanel.refresh();
     }),
 
+    vscode.commands.registerCommand('gitcharm.expandCommitPanel', () => {
+      commitPanel.expandAll();
+    }),
+
+    vscode.commands.registerCommand('gitcharm.collapseCommitPanel', () => {
+      commitPanel.collapseAll();
+    }),
+
+    vscode.commands.registerCommand('gitcharm.showCommitPanelViewOptions', () => {
+      return commitPanel.showViewOptions();
+    }),
+
+    vscode.commands.registerCommand('gitcharm.toggleChangedRepositoriesFilter', () => {
+      return commitPanel.toggleChangedRepositoriesFilter();
+    }),
+
     vscode.commands.registerCommand('gitcharm.openMergeEditor', () => {
       mergeEditor.openCurrentEditorFile();
     }),
