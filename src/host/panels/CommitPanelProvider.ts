@@ -488,7 +488,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
 
   switchToTab(tab: 'changes' | 'shelf' | 'stash' | 'worktree' | 'push'): void {
     this.setActiveTab(tab);
-    this.post({ type: 'COMMIT_SWITCH_TAB', tab });
+    this.broadcastCommit({ type: 'COMMIT_SWITCH_TAB', tab });
   }
 
   expandAll(): void {

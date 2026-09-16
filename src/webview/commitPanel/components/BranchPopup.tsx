@@ -71,7 +71,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
   const extras = rootMenu ? repositoryItems.map(item => ({ ...item, id: `repo:${item.id}` })) : [];
   const items = [...extras, ...(menu?.items ?? [])].filter(item => !query || (!item.toolbar && !item.separator && `${item.label} ${item.description ?? ''}`.toLowerCase().includes(query.toLowerCase()))) ?? [];
   const toolbarItems = query ? [] : items.filter(item => item.toolbar && !item.separator && !item.id.startsWith('repo:'));
-  const repositoryToolbarItems = query ? [] : extras.filter(item => item.toolbar);
+  toolbarItems.push(...(query ? [] : extras.filter(item => item.toolbar)));
   const listItems = items.filter(item => !item.toolbar);
   while (listItems[0]?.separator && !listItems[0].label) listItems.shift();
   const select = (id: string) => {
@@ -117,12 +117,12 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
         <Codicon name="add" style={{ fontSize: 16 }} />
       </button>}
       </div>
-      {[toolbarItems, repositoryToolbarItems].filter(group => group.length > 0).map((group, groupIndex) => <div key={groupIndex} role="toolbar" aria-label="Repository actions" style={{ display: 'flex', gap: 4, padding: '2px 4px 6px', flexShrink: 0 }}>
-        {group.map((item, index) => {
+      {toolbarItems.length > 0 && <div role="toolbar" aria-label="Repository actions" style={{ display: 'flex', gap: 4, padding: '2px 4px 6px', flexShrink: 0 }}>
+        {toolbarItems.map((item, index) => {
           const icon = item.label.match(/^\$\(([^)]+)\)\s*/);
           const label = item.label.replace(/^\$\([^)]+\)\s*/, '');
           return <React.Fragment key={item.id}>
-            {index > 0 && item.toolbarGroup !== group[index - 1].toolbarGroup &&
+            {index > 0 && item.toolbarGroup !== toolbarItems[index - 1].toolbarGroup &&
               <span role="separator" aria-orientation="vertical" style={{ width: 1, flexShrink: 0, margin: '4px 2px', background: 'var(--vscode-panel-border)' }} />}
             <FastTooltip label={label}><button type="button" aria-label={label} onClick={() => select(item.id)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 0', minWidth: 0, height: 28, padding: 0, border: 0, borderRadius: 3, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
@@ -132,7 +132,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
           </button></FastTooltip>
           </React.Fragment>;
         })}
-      </div>)}
+      </div>}
       <div style={{ overflowY: 'auto', minHeight: 0 }}>
         {listItems.map(item => {
           if (item.separator) return <div key={item.id} style={{ borderTop: '1px solid var(--vscode-panel-border)', margin: '5px 4px', paddingTop: item.label ? 5 : 0, fontSize: 10, opacity: 0.7 }}>{item.label}</div>;

@@ -108,10 +108,6 @@ export function RepositoryOverview({ repos, repoMetas, onOpenLog, onRepoAction }
             ] : []),
             ...[
               ['view-git-log', 'git-commit', 'View Git Log'],
-              ['reveal-explorer', 'list-tree', 'Reveal in Explorer'],
-              ['open-new-window', 'multiple-windows', 'Open in New Window'],
-              ['reveal-os', 'folder-opened', 'Reveal in File Manager'],
-              ['hide-repo', 'eye-closed', 'Hide Repository'],
               ['refresh', 'refresh', 'Refresh'],
             ].map(([id, icon, label]) => ({ id, label: `$(${icon}) ${label}`, separator: false, toolbar: true })),
           ];

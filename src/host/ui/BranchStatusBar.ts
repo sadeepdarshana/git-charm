@@ -1107,7 +1107,6 @@ export class BranchStatusBar implements vscode.Disposable {
       {
         label: '$(remote-explorer) Manage Remotes…',
         toolbar: true,
-        toolbarGroup: 'manage',
         description: 'Add, remove, or edit remote repositories',
         action: () => this.showRepoRemotesMenu(meta),
       },

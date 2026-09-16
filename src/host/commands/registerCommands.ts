@@ -21,6 +21,11 @@ export function registerCommands(
   manager?: WorkspaceGitManager,
   extensionUri?: vscode.Uri,
 ): void {
+  for (const tab of ['changes', 'shelf', 'stash', 'worktree', 'push'] as const) {
+    context.subscriptions.push(vscode.commands.registerCommand(`gitcharm.selectView.${tab}`, () => {
+      commitPanel.switchToTab(tab);
+    }));
+  }
   context.subscriptions.push(
     // Focus the Git Log panel in the bottom bar
     vscode.commands.registerCommand('gitcharm.openLog', () => {

@@ -9,6 +9,7 @@ import { ShelvePanel } from './components/ShelvePanel';
 import { StashTab } from './components/StashTab';
 import { PushTab } from './components/PushTab';
 import { WorktreePanel } from './components/WorktreePanel';
+import { PanelControls } from './components/PanelControls';
 import { RepositoryOverview } from './components/RepositoryOverview';
 import { getVsCodeApi } from '../shared/vscodeApi';
 import { Codicon } from '../shared/Codicon';
@@ -630,10 +631,15 @@ function App() {
           setHiddenRepoIds(msg.hiddenRepoIds);
           break;
 
-        case 'COMMIT_SWITCH_TAB':
+        case 'COMMIT_SWITCH_TAB': {
           setActiveTab(msg.tab);
-          if (msg.tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
+          const currentRepos = useCommitStore.getState().status?.repos ?? [];
+          if (msg.tab === 'shelf') currentRepos.forEach(r => requestShelveList(r.repoId));
+          if (msg.tab === 'stash') currentRepos.forEach(r => requestStashList(r.repoId));
+          if (msg.tab === 'push') currentRepos.forEach(r => requestUnpushedCommits(r.repoId));
+          if (msg.tab === 'worktree') requestWorktreeList();
           break;
+        }
 
         case 'COMMIT_DESELECT_FILE':
           setSelectedFile(prev => {
@@ -1300,16 +1306,8 @@ function App() {
       </div>
       )}
 
-      {/* ── Tab bar ── */}
+      {/* ── Commit controls ── */}
       {(() => {
-        const totalToPush = repos.reduce((sum, r) => {
-          if (r.branch.upstream) return sum + (r.branch.aheadBehind?.ahead ?? 0);
-          return sum + (unpushedMap[r.repoId]?.commits?.length ?? 0);
-        }, 0);
-        const totalChanges = repos.reduce((sum, r) => {
-          const paths = new Set([...r.stagedFiles.map(f => f.path), ...r.unstagedFiles.map(f => f.path)]);
-          return sum + paths.size;
-        }, 0);
         const headerCommitTargets = changesRepos.map(r => ({
           ...r,
           selectedCount: store.changesViewMode === 'vscode'
@@ -1330,44 +1328,25 @@ function App() {
         const canChangeSelectedFiles = headerActionTargets.length > 0 && !store.loading && !isAmending;
         return (
           <div style={css.tabBar}>
-            <div style={css.tabItems}>
-              {(['changes', 'shelf', 'stash', 'worktree', 'push'] as TabId[]).map(tab => {
-                const changesLabel = (store.changesViewMode === 'changelists' || store.changesViewMode === 'vscode') ? 'Commit' : 'Changes';
-                const label = tab === 'changes' ? changesLabel : tab === 'shelf' ? 'Shelf' : tab === 'stash' ? 'Stash' : tab === 'worktree' ? 'Worktrees' : 'Push';
-                const iconName = tab === 'changes' ? 'source-control' : tab === 'shelf' ? 'archive' : tab === 'stash' ? 'git-stash' : tab === 'worktree' ? 'worktree' : 'cloud-upload';
-                return (
-                  <button
-                    key={tab}
-                    style={css.tab(activeTab === tab)}
-                    title={label}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      send({ type: 'COMMIT_ACTIVE_TAB_CHANGED', tab });
-                      if (tab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
-                      if (tab === 'stash') repos.forEach(r => requestStashList(r.repoId));
-                      if (tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
-                      if (tab === 'worktree') requestWorktreeList();
-                    }}
-                  >
-                    <Codicon
-                      name={iconName}
-                      style={{ marginRight: activeTab === tab ? '5px' : '0', fontSize: '13px', transition: 'margin 0.15s' }}
-                    />
-                    {activeTab === tab && (
-                      <span style={{ animation: 'gs-tab-label-in 0.18s ease-out both', overflow: 'hidden', display: 'inline-block' }}>
-                        {label}
-                      </span>
-                    )}
-                    {tab === 'changes' && totalChanges > 0 && (
-                      <span style={css.pushBadge}>{totalChanges}</span>
-                    )}
-                    {tab === 'push' && totalToPush > 0 && (
-                      <span style={css.pushBadge}>{totalToPush}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <PanelControls tab={activeTab} mode={store.viewMode}
+              onTab={tab => {
+                setActiveTab(tab);
+                send({ type: 'COMMIT_ACTIVE_TAB_CHANGED', tab });
+                if (tab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
+                if (tab === 'stash') repos.forEach(r => requestStashList(r.repoId));
+                if (tab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
+                if (tab === 'worktree') requestWorktreeList();
+              }}
+              onRefresh={() => {
+                send({ type: 'COMMIT_REQUEST_STATUS' });
+                if (activeTab === 'shelf') repos.forEach(r => requestShelveList(r.repoId));
+                if (activeTab === 'stash') repos.forEach(r => requestStashList(r.repoId));
+                if (activeTab === 'push') repos.forEach(r => requestUnpushedCommits(r.repoId));
+                if (activeTab === 'worktree') requestWorktreeList();
+              }}
+              onExpand={() => store.expandAll()} onCollapse={() => store.collapseAll()}
+              onMode={mode => { store.setViewMode(mode); send({ type: 'COMMIT_SET_FILE_VIEW_MODE', mode }); }}
+            />
             {activeTab === 'changes' && (
               <div style={css.compactCommitBar}>
                 {amendTarget && (

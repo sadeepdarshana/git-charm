@@ -1,7 +1,7 @@
 {
   "name": "gitcharm",
   "displayName": "GitCharm",
-  "description": "JetBrains-like Git management for VS Code — Commit panel, Git Log with graph, multi-repo support and more.",
+  "description": "JetBrains-like Git management for VS Code \u2014 Commit panel, Git Log with graph, multi-repo support and more.",
   "version": "0.4.4",
   "publisher": "RioNoir",
   "license": "GPL-3.0-only",
@@ -41,6 +41,46 @@
       {
         "id": "gitcharm/explorer",
         "label": "GitCharm"
+      },
+      {
+        "id": "gitcharm/selectView/changes",
+        "label": "Select View \u2014 Changes",
+        "icon": {
+          "light": "media/icons/select-view-changes-light.svg",
+          "dark": "media/icons/select-view-changes-dark.svg"
+        }
+      },
+      {
+        "id": "gitcharm/selectView/shelf",
+        "label": "Select View \u2014 Shelf",
+        "icon": {
+          "light": "media/icons/select-view-shelf-light.svg",
+          "dark": "media/icons/select-view-shelf-dark.svg"
+        }
+      },
+      {
+        "id": "gitcharm/selectView/stash",
+        "label": "Select View \u2014 Stash",
+        "icon": {
+          "light": "media/icons/select-view-stash-light.svg",
+          "dark": "media/icons/select-view-stash-dark.svg"
+        }
+      },
+      {
+        "id": "gitcharm/selectView/worktree",
+        "label": "Select View \u2014 Worktrees",
+        "icon": {
+          "light": "media/icons/select-view-worktree-light.svg",
+          "dark": "media/icons/select-view-worktree-dark.svg"
+        }
+      },
+      {
+        "id": "gitcharm/selectView/push",
+        "label": "Select View \u2014 Push",
+        "icon": {
+          "light": "media/icons/select-view-push-light.svg",
+          "dark": "media/icons/select-view-push-dark.svg"
+        }
       }
     ],
     "viewsContainers": {
@@ -306,30 +346,45 @@
         "title": "Compare with...",
         "category": "GitCharm",
         "icon": "$(git-compare)"
+      },
+      {
+        "command": "gitcharm.selectView.changes",
+        "title": "Changes",
+        "category": "GitCharm",
+        "icon": "$(source-control)",
+        "toggled": "gitcharm.commitPanelActiveTab == changes"
+      },
+      {
+        "command": "gitcharm.selectView.shelf",
+        "title": "Shelf",
+        "category": "GitCharm",
+        "icon": "$(archive)",
+        "toggled": "gitcharm.commitPanelActiveTab == shelf"
+      },
+      {
+        "command": "gitcharm.selectView.stash",
+        "title": "Stash",
+        "category": "GitCharm",
+        "icon": "$(git-stash)",
+        "toggled": "gitcharm.commitPanelActiveTab == stash"
+      },
+      {
+        "command": "gitcharm.selectView.worktree",
+        "title": "Worktrees",
+        "category": "GitCharm",
+        "icon": "$(worktree)",
+        "toggled": "gitcharm.commitPanelActiveTab == worktree"
+      },
+      {
+        "command": "gitcharm.selectView.push",
+        "title": "Push",
+        "category": "GitCharm",
+        "icon": "$(cloud-upload)",
+        "toggled": "gitcharm.commitPanelActiveTab == push"
       }
     ],
     "menus": {
       "view/title": [
-        {
-          "command": "gitcharm.refreshCommitPanel",
-          "when": "view == gitcharm.commitPanel",
-          "group": "navigation@1"
-        },
-        {
-          "command": "gitcharm.expandCommitPanel",
-          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@2"
-        },
-        {
-          "command": "gitcharm.collapseCommitPanel",
-          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@3"
-        },
-        {
-          "command": "gitcharm.showCommitPanelViewOptions",
-          "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@4"
-        },
         {
           "command": "gitcharm.toggleChangedRepositoriesFilter",
           "when": "view == gitcharm.commitPanel && gitcharm.commitPanelActiveTab == changes",
@@ -372,26 +427,6 @@
         }
       ],
       "editor/title": [
-        {
-          "command": "gitcharm.refreshCommitPanel",
-          "when": "activeWebviewPanelId == gitcharm.undocked",
-          "group": "navigation@1"
-        },
-        {
-          "command": "gitcharm.expandCommitPanel",
-          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@2"
-        },
-        {
-          "command": "gitcharm.collapseCommitPanel",
-          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@3"
-        },
-        {
-          "command": "gitcharm.showCommitPanelViewOptions",
-          "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
-          "group": "navigation@4"
-        },
         {
           "command": "gitcharm.toggleChangedRepositoriesFilter",
           "when": "activeWebviewPanelId == gitcharm.undocked && gitcharm.commitPanelActiveTab == changes",
@@ -602,6 +637,116 @@
           "command": "gitcharm.closeGitAnnotations",
           "when": "resourceScheme == file && gitcharm.annotationsVisible",
           "group": "gitcharm@3"
+        }
+      ],
+      "gitcharm/selectView/changes": [
+        {
+          "command": "gitcharm.selectView.changes",
+          "group": "views@0"
+        },
+        {
+          "command": "gitcharm.selectView.shelf",
+          "group": "views@1"
+        },
+        {
+          "command": "gitcharm.selectView.stash",
+          "group": "views@2"
+        },
+        {
+          "command": "gitcharm.selectView.worktree",
+          "group": "views@3"
+        },
+        {
+          "command": "gitcharm.selectView.push",
+          "group": "views@4"
+        }
+      ],
+      "gitcharm/selectView/shelf": [
+        {
+          "command": "gitcharm.selectView.changes",
+          "group": "views@0"
+        },
+        {
+          "command": "gitcharm.selectView.shelf",
+          "group": "views@1"
+        },
+        {
+          "command": "gitcharm.selectView.stash",
+          "group": "views@2"
+        },
+        {
+          "command": "gitcharm.selectView.worktree",
+          "group": "views@3"
+        },
+        {
+          "command": "gitcharm.selectView.push",
+          "group": "views@4"
+        }
+      ],
+      "gitcharm/selectView/stash": [
+        {
+          "command": "gitcharm.selectView.changes",
+          "group": "views@0"
+        },
+        {
+          "command": "gitcharm.selectView.shelf",
+          "group": "views@1"
+        },
+        {
+          "command": "gitcharm.selectView.stash",
+          "group": "views@2"
+        },
+        {
+          "command": "gitcharm.selectView.worktree",
+          "group": "views@3"
+        },
+        {
+          "command": "gitcharm.selectView.push",
+          "group": "views@4"
+        }
+      ],
+      "gitcharm/selectView/worktree": [
+        {
+          "command": "gitcharm.selectView.changes",
+          "group": "views@0"
+        },
+        {
+          "command": "gitcharm.selectView.shelf",
+          "group": "views@1"
+        },
+        {
+          "command": "gitcharm.selectView.stash",
+          "group": "views@2"
+        },
+        {
+          "command": "gitcharm.selectView.worktree",
+          "group": "views@3"
+        },
+        {
+          "command": "gitcharm.selectView.push",
+          "group": "views@4"
+        }
+      ],
+      "gitcharm/selectView/push": [
+        {
+          "command": "gitcharm.selectView.changes",
+          "group": "views@0"
+        },
+        {
+          "command": "gitcharm.selectView.shelf",
+          "group": "views@1"
+        },
+        {
+          "command": "gitcharm.selectView.stash",
+          "group": "views@2"
+        },
+        {
+          "command": "gitcharm.selectView.worktree",
+          "group": "views@3"
+        },
+        {
+          "command": "gitcharm.selectView.push",
+          "group": "views@4"
         }
       ]
     },
