@@ -444,7 +444,7 @@ function App() {
   const [folderCtxMenu, setFolderCtxMenu] = useState<{
     x: number; y: number; repoId: string; folderPath: string; files: FileStatus[];
   } | null>(null);
-  const [repoCtxMenu, setRepoCtxMenu] = useState<{ x: number; y: number; repoId: string; changelistId?: string; stagedSection?: boolean } | null>(null);
+  const [repoCtxMenu, setRepoCtxMenu] = useState<{ x: number; y: number; repoId: string; changelistId?: string; stagedSection?: boolean; overview?: boolean } | null>(null);
   // vscode-mode: staged flag attached to file/folder ctx menus
   const [ctxMenuStaged, setCtxMenuStaged] = useState<boolean>(false);
   const [folderCtxMenuStaged, setFolderCtxMenuStaged] = useState<boolean>(false);
@@ -895,8 +895,8 @@ function App() {
     }
   }, [folderCtxMenu, doStash, send]);
 
-  const handleRepoContextMenuSelect = useCallback((id: string) => {
-    const ctx = repoCtxMenu;
+  const handleRepoContextMenuSelect = useCallback((id: string, repoId?: string) => {
+    const ctx = repoId ? { repoId } : repoCtxMenu;
     if (!ctx) return;
     const repoStatus = repos.find(r => r.repoId === ctx.repoId);
     switch (id) {
@@ -1709,9 +1709,8 @@ function App() {
             <RepositoryOverview
               repos={repos}
               repoMetas={store.repoMetas}
-              onBranchClick={repoId => send({ type: 'COMMIT_SHOW_BRANCH_MENU', repoId })}
               onOpenLog={repoId => send({ type: 'COMMIT_VIEW_GIT_LOG', repoId })}
-              onContextMenu={(event, repoId) => setRepoCtxMenu({ x: event.clientX, y: event.clientY, repoId })}
+              onRepoAction={handleRepoContextMenuSelect}
             />
           </div>
         )}
@@ -1994,6 +1993,8 @@ function App() {
         return (
           <ContextMenu
             x={repoCtxMenu.x} y={repoCtxMenu.y}
+            iconOnly={repoCtxMenu.overview}
+            rowItemIds={repoCtxMenu.overview ? ['rollback', 'shelve', 'stash'] : undefined}
             items={(() => {
               const rs = repos.find(r => r.repoId === repoCtxMenu.repoId);
               const totalFiles = new Set([...(rs?.unstagedFiles ?? []).map(f => f.path), ...(rs?.stagedFiles ?? []).map(f => f.path)]).size;
@@ -2004,6 +2005,7 @@ function App() {
               if (noChanges) items = items.filter((item, i, arr) =>
                 !('separator' in item) || (i > 0 && !('separator' in arr[i - 1]))
               );
+              if (repoCtxMenu.overview) items = items.filter(item => 'id' in item && item.id !== 'manage-repo');
               return dynItems(items, totalFiles);
             })()}
             onSelect={id => {

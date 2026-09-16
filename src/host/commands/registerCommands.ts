@@ -125,20 +125,11 @@ export function registerCommands(
       const metas = manager.getRepoMetas();
       const metaById = new Map(metas.map(m => [m.id, m]));
 
-      const pick = await vscode.window.showQuickPick(
-        [
-          { label: '$(git-merge) Merge incoming changes into the current branch', rebase: false },
-          { label: '$(repo-forked) Rebase the current branch on top of incoming changes', rebase: true },
-        ],
-        { title: 'Sync — Pull Strategy' }
-      ) as { label: string; rebase: boolean } | undefined;
-      if (!pick) return;
-
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Syncing all repositories…', cancellable: false },
         async () => {
           // Pull first
-          const pullResults = await manager.pullAll(pick.rebase);
+          const pullResults = await manager.pullAll(false);
           const pullFailed = pullResults.filter(r => !r.ok);
 
           if (pullFailed.length > 0) {

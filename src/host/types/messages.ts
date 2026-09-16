@@ -59,7 +59,12 @@ export interface UnpushedCommit {
 
 // ─── Commit Panel: Host → WebView ────────────────────────────────────────────
 
+export interface BranchPopupItem {
+  id: string; label: string; description?: string; separator: boolean; toolbar?: boolean; toolbarGroup?: 'manage';
+}
+
 export type HostToCommitMsg =
+  | { type: 'COMMIT_BRANCH_POPUP'; requestId: string; menuId: number; title: string; items: BranchPopupItem[] }
   | { type: 'COMMIT_STATUS_UPDATE'; repos: RepoMeta[]; status: WorkspaceStatus; iconTheme?: IconThemeData; fileViewMode?: 'flat' | 'tree'; defaultCommitAction?: 'commit' | 'commitAndPush'; defaultSaveAction?: 'stash' | 'shelve'; hasWorkspaceFolder?: boolean; aiEnabled?: boolean; activeProfile?: { name: string; gitName: string; gitEmail: string; builtIn?: 'local' | 'global' } }
   | { type: 'COMMIT_DIFF_RESULT'; requestId: string; diff: FileDiff | null; error?: string }
   | { type: 'COMMIT_OP_RESULT'; requestId: string; ok: boolean; output?: string; error?: string }
@@ -97,6 +102,10 @@ export type HostToCommitMsg =
 // ─── Commit Panel: WebView → Host ────────────────────────────────────────────
 
 export type CommitToHostMsg =
+  | { type: 'COMMIT_BRANCH_POPUP_CREATE'; requestId: string; name: string }
+  | { type: 'COMMIT_OPEN_BRANCH_POPUP'; repoId: string; requestId: string }
+  | { type: 'COMMIT_BRANCH_POPUP_SELECT'; requestId: string; menuId: number; id: string }
+  | { type: 'COMMIT_BRANCH_POPUP_CLOSE'; requestId: string }
   | { type: 'COMMIT_REQUEST_STATUS' }
   | { type: 'COMMIT_REQUEST_DIFF'; requestId: string; repoId: string; filePath: string; staged: boolean }
   | { type: 'COMMIT_STAGE_FILES'; requestId: string; repoId: string; paths: string[] }

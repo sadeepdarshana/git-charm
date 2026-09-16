@@ -20,7 +20,7 @@ import { compareFileWithRef, compareFolderWithRef } from './CompareWithCommand';
 import { pickRefQuickPick } from '../utils/refPicker';
 import type { GitProfileService } from '../git/GitProfileService';
 import { LOCAL_PROFILE_ID, GLOBAL_PROFILE_ID } from '../git/GitProfileService';
-import type { BranchStatusBar } from '../ui/BranchStatusBar';
+import type { BranchStatusBar, BranchMenuItem, BranchMenuPresenter } from '../ui/BranchStatusBar';
 import { formatGitError, showGitError, getRawErrorDetail } from '../utils/gitErrorUtils';
 import { logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
 
@@ -31,6 +31,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   private logProvider?: GitLogPanelProvider;
   private undockedPanel?: UndockedPanelProvider;
   private branchStatusBar?: BranchStatusBar;
+  private branchPopup?: { repoId: string; requestId: string; menuId: number; items: BranchMenuItem[] };
   private changelistService?: ChangelistService;
   private badgeController?: import('../ui/BadgeController').BadgeController;
   // When set, post() sends to the undocked panel instead of the sidebar
@@ -1287,6 +1288,49 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
         this.post({ type: 'COMMIT_STATUS_UPDATE', repos: this.manager.getRepoMetas(), status });
         break;
       }
+
+      case 'COMMIT_OPEN_BRANCH_POPUP': {
+        const meta = this.manager.getRepoMetas().find(repo => repo.id === msg.repoId);
+        if (!meta || !this.branchStatusBar) break;
+        const session = { repoId: msg.repoId, requestId: msg.requestId, menuId: 0, items: [] as BranchMenuItem[] };
+        this.branchPopup = session;
+        const target = this.activeReplyTarget;
+        const present: BranchMenuPresenter = (items, title) => {
+          if (this.branchPopup !== session) return;
+          session.items = items;
+          session.menuId++;
+          const response: HostToCommitMsg = {
+            type: 'COMMIT_BRANCH_POPUP', requestId: session.requestId, menuId: session.menuId, title,
+            items: items.map((item, index) => ({
+              id: String(index), label: item.label, description: item.description, toolbar: item.toolbar, toolbarGroup: item.toolbarGroup,
+              separator: item.kind === vscode.QuickPickItemKind.Separator,
+            })),
+          };
+          if (target === 'undocked') this.undockedPanel?.postToCommit(response);
+          else void this.view?.webview.postMessage(response);
+        };
+        await this.branchStatusBar.showRepoBranchMenu(meta, present);
+        break;
+      }
+      case 'COMMIT_BRANCH_POPUP_SELECT': {
+        const session = this.branchPopup;
+        if (!session || session.requestId !== msg.requestId || session.menuId !== msg.menuId) break;
+        const item = session.items.find((_, index) => String(index) === msg.id);
+        session.items = [];
+        if (item && item.kind !== vscode.QuickPickItemKind.Separator) await item.action();
+        break;
+      }
+      case 'COMMIT_BRANCH_POPUP_CREATE': {
+        const session = this.branchPopup;
+        if (!session || session.requestId !== msg.requestId || !msg.name.trim()) break;
+        this.branchPopup = undefined;
+        const meta = this.manager.getRepoMetas().find(repo => repo.id === session.repoId);
+        if (meta) await this.branchStatusBar?.newBranchSingleRepo(meta, msg.name);
+        break;
+      }
+      case 'COMMIT_BRANCH_POPUP_CLOSE':
+        if (this.branchPopup?.requestId === msg.requestId) this.branchPopup = undefined;
+        break;
 
       case 'COMMIT_SHOW_BRANCH_MENU': {
         await vscode.commands.executeCommand('gitcharm.showBranchMenu', msg.repoId);

@@ -7,6 +7,9 @@ import type { GitLogPanelProvider } from '../panels/GitLogPanelProvider';
 import { formatGitError, showGitError, getRawErrorDetail } from '../utils/gitErrorUtils';
 import { logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
 
+export type BranchMenuItem = vscode.QuickPickItem & { toolbar?: boolean; toolbarGroup?: 'manage'; action: () => Promise<void> | void };
+export type BranchMenuPresenter = (items: BranchMenuItem[], title: string) => void;
+
 export class BranchStatusBar implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
   private logStatusBarItem: vscode.StatusBarItem;
@@ -822,22 +825,6 @@ export class BranchStatusBar implements vscode.Disposable {
   }
 
   async updateProject(): Promise<void> {
-    const pick = await vscode.window.showQuickPick(
-      [
-        {
-          label: '$(git-merge) Merge incoming changes into the current branch',
-          rebase: false,
-        },
-        {
-          label: '$(repo-forked) Rebase the current branch on top of incoming changes',
-          rebase: true,
-        },
-      ],
-      { title: 'Update Project — Strategy' }
-    ) as { label: string; rebase: boolean } | undefined;
-
-    if (!pick) return;
-
     const metas = this.manager.getRepoMetas();
     const metaById = new Map(metas.map(m => [m.id, m]));
 
@@ -848,7 +835,7 @@ export class BranchStatusBar implements vscode.Disposable {
         cancellable: false,
       },
       async () => {
-        const results = await this.manager.pullAll(pick.rebase);
+        const results = await this.manager.pullAll(false);
         const failed = results.filter(r => !r.ok);
         const ok = results.filter(r => r.ok);
         if (failed.length === 0) {
@@ -956,7 +943,7 @@ export class BranchStatusBar implements vscode.Disposable {
     await this.refresh();
   }
 
-  private async showRepoBranchMenu(meta: RepoMeta): Promise<void> {
+  async showRepoBranchMenu(meta: RepoMeta, present?: BranchMenuPresenter): Promise<void> {
     const repo = this.manager.getRepo(meta.id);
     if (!repo) return;
 
@@ -970,7 +957,7 @@ export class BranchStatusBar implements vscode.Disposable {
     const effectiveBranchName = currentBranch.detachedTag ?? currentBranch.detachedHash ?? currentBranch.name;
     const isDetached = !!currentBranch.detachedTag || !!currentBranch.detachedHash || currentBranch.name === 'HEAD';
 
-    type BranchItem = vscode.QuickPickItem & { action: () => Promise<void> | void };
+    type BranchItem = BranchMenuItem;
 
     const items: BranchItem[] = [
       {
@@ -980,6 +967,7 @@ export class BranchStatusBar implements vscode.Disposable {
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
       {
         label: '$(repo-fetch) Fetch',
+        toolbar: true,
         description: 'Fetch all remotes',
         action: async () => {
           await vscode.window.withProgress(
@@ -990,22 +978,15 @@ export class BranchStatusBar implements vscode.Disposable {
         },
       },
       {
-        label: '$(repo-pull) Pull…',
+        label: '$(repo-pull) Pull',
+        toolbar: true,
         description: 'Pull from remote',
         action: async () => {
-          const pick = await vscode.window.showQuickPick(
-            [
-              { label: '$(git-merge) Merge incoming changes', rebase: false },
-              { label: '$(repo-forked) Rebase onto incoming changes', rebase: true },
-            ],
-            { title: `Pull — ${meta.name}` }
-          ) as { label: string; rebase: boolean } | undefined;
-          if (!pick) return;
           await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `[${meta.name}]: Pulling…`, cancellable: false },
             async () => {
               try {
-                const msg = pick.rebase ? await repo.pullRebase() : await repo.pull();
+                const msg = await repo.pull();
                 vscode.window.showInformationMessage(`[${meta.name}]: ${msg}`);
                 logInfo(`pull:${meta.name}`, `[${meta.name}]: ${msg}`);
               } catch (e: unknown) {
@@ -1018,6 +999,7 @@ export class BranchStatusBar implements vscode.Disposable {
       },
       {
         label: '$(repo-push) Push',
+        toolbar: true,
         description: 'Push to remote',
         action: async () => {
           const remotes = await repo.getRemotes().catch(() => [] as string[]);
@@ -1053,6 +1035,7 @@ export class BranchStatusBar implements vscode.Disposable {
       },
       {
         label: '$(repo-force-push) Force Push',
+        toolbar: true,
         description: 'Force push to remote',
         action: async () => {
           const confirm = await vscode.window.showWarningMessage(
@@ -1077,22 +1060,15 @@ export class BranchStatusBar implements vscode.Disposable {
         },
       },
       {
-        label: '$(sync) Sync…',
+        label: '$(sync) Sync',
+        toolbar: true,
         description: 'Pull then push',
         action: async () => {
-          const pick = await vscode.window.showQuickPick(
-            [
-              { label: '$(git-merge) Merge incoming changes', rebase: false },
-              { label: '$(repo-forked) Rebase onto incoming changes', rebase: true },
-            ],
-            { title: `Sync — ${meta.name}` }
-          ) as { label: string; rebase: boolean } | undefined;
-          if (!pick) return;
           await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `[${meta.name}]: Syncing…`, cancellable: false },
             async () => {
               try {
-                const msg = pick.rebase ? await repo.pullRebase() : await repo.pull();
+                const msg = await repo.pull();
                 vscode.window.showInformationMessage(`[${meta.name}]: Pull — ${msg}`);
                 logInfo(`sync-pull:${meta.name}`, `[${meta.name}]: Pull — ${msg}`);
               } catch (e: unknown) {
@@ -1116,16 +1092,22 @@ export class BranchStatusBar implements vscode.Disposable {
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
       {
         label: '$(add) New Branch…',
+        toolbar: true,
+        toolbarGroup: 'manage',
         description: `Create a new branch in ${meta.name}`,
         action: () => this.newBranchSingleRepo(meta),
       },
       {
         label: '$(tag) New Tag…',
+        toolbar: true,
+        toolbarGroup: 'manage',
         description: `Create a new tag on HEAD in ${meta.name}`,
         action: () => this.newTagSingleRepo(meta),
       },
       {
         label: '$(remote-explorer) Manage Remotes…',
+        toolbar: true,
+        toolbarGroup: 'manage',
         description: 'Add, remove, or edit remote repositories',
         action: () => this.showRepoRemotesMenu(meta),
       },
@@ -1139,7 +1121,7 @@ export class BranchStatusBar implements vscode.Disposable {
         return {
           label: `${icon} ${b.name}`,
           description: b.aheadBehind ? `↑${b.aheadBehind.ahead} ↓${b.aheadBehind.behind}` : '',
-          action: () => this.showSingleBranchActionMenu(b.name, meta, b.isHead, false, hasUnpushed, effectiveBranchName),
+          action: () => this.showSingleBranchActionMenu(b.name, meta, b.isHead, false, hasUnpushed, effectiveBranchName, present),
         };
       }),
       { label: 'REMOTE', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
@@ -1149,7 +1131,7 @@ export class BranchStatusBar implements vscode.Disposable {
         return {
           label: `${icon} ${b.name}`,
           description: '',
-          action: () => this.showSingleBranchActionMenu(b.name, meta, false, true, false, effectiveBranchName),
+          action: () => this.showSingleBranchActionMenu(b.name, meta, false, true, false, effectiveBranchName, present),
         };
       }),
     ];
@@ -1162,7 +1144,7 @@ export class BranchStatusBar implements vscode.Disposable {
         items.push({
           label: `${icon} ${tag.name}`,
           description: isActiveTag ? 'current' : tag.hash,
-          action: () => this.showSingleTagActionMenu(tag.name, meta, effectiveBranchName, isDetached),
+          action: () => this.showSingleTagActionMenu(tag.name, meta, effectiveBranchName, isDetached, present),
         });
       }
     }
@@ -1196,6 +1178,11 @@ export class BranchStatusBar implements vscode.Disposable {
       });
     }
 
+    if (present) {
+      present(items.slice(2), `${meta.name} — Branches`);
+      return;
+    }
+
     const pick = await vscode.window.showQuickPick(items, {
       title: `${meta.name} — Branches`,
       matchOnDescription: true,
@@ -1209,6 +1196,7 @@ export class BranchStatusBar implements vscode.Disposable {
     meta: RepoMeta,
     currentBranchName: string,
     isDetached = false,
+    present?: BranchMenuPresenter,
   ): Promise<void> {
     const repo = this.manager.getRepo(meta.id);
     if (!repo) return;
@@ -1253,7 +1241,7 @@ export class BranchStatusBar implements vscode.Disposable {
     const items: ActionItem[] = [
       {
         label: '$(arrow-left) Back',
-        action: () => this.showRepoBranchMenu(meta),
+        action: () => this.showRepoBranchMenu(meta, present),
       },
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
       {
@@ -1311,6 +1299,11 @@ export class BranchStatusBar implements vscode.Disposable {
       },
     ];
 
+    if (present) {
+      present(items, `Tag: ${tagName} — ${meta.name}`);
+      return;
+    }
+
     const pick = await vscode.window.showQuickPick(items, {
       title: `Tag: ${tagName} — ${meta.name}`,
       matchOnDescription: true,
@@ -1326,13 +1319,14 @@ export class BranchStatusBar implements vscode.Disposable {
     isRemote: boolean,
     hasUnpushed: boolean,
     currentBranchName: string,
+    present?: BranchMenuPresenter,
   ): Promise<void> {
     type ActionItem = vscode.QuickPickItem & { action: () => Promise<void> | void };
 
     const items: ActionItem[] = [
       {
         label: '$(arrow-left) Back',
-        action: () => this.showRepoBranchMenu(meta),
+        action: () => this.showRepoBranchMenu(meta, present),
       },
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
       {
@@ -1397,6 +1391,11 @@ export class BranchStatusBar implements vscode.Disposable {
       );
     }
 
+    if (present) {
+      present(items, `${branchName} — ${meta.name}`);
+      return;
+    }
+
     const pick = await vscode.window.showQuickPick(items, {
       title: `${branchName} — ${meta.name}`,
       matchOnDescription: true,
@@ -1405,11 +1404,11 @@ export class BranchStatusBar implements vscode.Disposable {
     if (pick) await pick.action();
   }
 
-  private async newBranchSingleRepo(meta: RepoMeta): Promise<void> {
+  async newBranchSingleRepo(meta: RepoMeta, suppliedName?: string): Promise<void> {
     const repo = this.manager.getRepo(meta.id);
     if (!repo) return;
 
-    const branchName = await vscode.window.showInputBox({
+    const branchName = suppliedName?.trim() || await vscode.window.showInputBox({
       title: `New Branch in ${meta.name}`,
       prompt: 'Enter the new branch name',
       validateInput: v => (v.trim() ? undefined : 'Branch name cannot be empty'),

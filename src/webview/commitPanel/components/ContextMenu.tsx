@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { FastTooltip } from '../../shared/FastTooltip';
 import { Codicon } from '../../shared/Codicon';
 
 export interface ContextMenuItem {
@@ -14,6 +15,8 @@ export interface ContextMenuSeparator {
 export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator;
 
 interface Props {
+  iconOnly?: boolean;
+  rowItemIds?: string[];
   x: number;
   y: number;
   items: ContextMenuEntry[];
@@ -21,7 +24,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function ContextMenu({ x, y, items, onSelect, onClose }: Props) {
+export function ContextMenu({ x, y, items, onSelect, onClose, iconOnly = false, rowItemIds = [] }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number; maxHeight?: number } | null>(null);
 
@@ -45,7 +48,7 @@ export function ContextMenu({ x, y, items, onSelect, onClose }: Props) {
       }
     }
     setPos({ x: px, y: py, maxHeight });
-  }, [x, y]);
+  }, [x, y, iconOnly, items.length]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -72,24 +75,39 @@ export function ContextMenu({ x, y, items, onSelect, onClose }: Props) {
   };
 
   return (
-    <div ref={ref} style={{ ...styles.menu, ...style }}>
+    <div ref={ref} role={iconOnly && !rowItemIds.length ? 'toolbar' : undefined} aria-label={iconOnly ? 'Repository actions' : undefined}
+      style={{ ...styles.menu, ...style, ...(iconOnly ? { display: 'flex', flexWrap: 'wrap', gap: 2, padding: 4, minWidth: 0, width: rowItemIds.length ? 208 : undefined, maxWidth: 'calc(100vw - 8px)', overflowX: 'auto' } : {}) }}
+      onKeyDown={event => {
+        if (!iconOnly || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        event.preventDefault();
+        const buttons = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button') ?? []);
+        const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'ArrowRight' ? (current + 1) % buttons.length : (current <= 0 ? buttons.length - 1 : current - 1);
+        buttons[next]?.focus();
+      }}>
       {items.map((item, i) => {
         if ('separator' in item && item.separator) {
-          return <div key={i} style={styles.separator} />;
+          return iconOnly ? null : <div key={i} style={styles.separator} />;
         }
         const it = item as ContextMenuItem;
-        return (
-          <div
+        const isIcon = iconOnly && !rowItemIds.includes(it.id);
+        const Tag = iconOnly ? 'button' : 'div';
+        const button = (
+          <Tag
+            type={iconOnly ? 'button' : undefined}
+            title={isIcon ? it.label : undefined}
+            aria-label={iconOnly ? it.label : undefined}
             key={it.id}
-            style={styles.item(!!it.danger)}
+            style={{ ...styles.item(!!it.danger), ...(isIcon ? { width: 30, height: 28, flexShrink: 0, justifyContent: 'center', padding: 0, border: 0, borderRadius: 3 } : iconOnly ? { flexBasis: '100%', width: '100%', border: 0, borderRadius: 3, font: 'inherit', textAlign: 'left' } : {}) }}
             onClick={() => { onSelect(it.id); onClose(); }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--vscode-menu-selectionBackground)'; e.currentTarget.style.color = it.danger ? 'var(--vscode-errorForeground)' : 'var(--vscode-menu-selectionForeground)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = it.danger ? 'var(--vscode-errorForeground)' : 'var(--vscode-menu-foreground, var(--vscode-foreground))'; }}
           >
             <Codicon name={it.icon} style={styles.icon} />
-            <span>{it.label}</span>
-          </div>
+            {!isIcon && <span>{it.label}</span>}
+          </Tag>
         );
+        return isIcon ? <FastTooltip key={it.id} label={it.label}>{button}</FastTooltip> : button;
       })}
     </div>
   );
