@@ -123,7 +123,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
           const label = item.label.replace(/^\$\([^)]+\)\s*/, '');
           return <React.Fragment key={item.id}>
             {index > 0 && item.toolbarGroup !== toolbarItems[index - 1].toolbarGroup &&
-              <span role="separator" aria-orientation="vertical" style={{ width: 1, flexShrink: 0, margin: '4px 2px', background: 'var(--vscode-panel-border)' }} />}
+              <span role="separator" aria-orientation="vertical" style={{ width: 1, flexShrink: 0, margin: '5px 3px', background: 'color-mix(in srgb, var(--vscode-foreground) 22%, transparent)' }} />}
             <FastTooltip label={label}><button type="button" aria-label={label} onClick={() => select(item.id)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 0', minWidth: 0, height: 28, padding: 0, border: 0, borderRadius: 3, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
             onMouseEnter={event => { event.currentTarget.style.background = 'var(--vscode-menu-selectionBackground)'; }}
