@@ -1,3 +1,5 @@
+> **Personal fork:** This build installs as `sadeepdarshana.gitcharm` (GitCharm (Personal)), independently of the upstream `RioNoir.gitcharm` Marketplace extension. Source: https://github.com/sadeepdarshana/git-charm. Install only one of these extensions at a time because they share GitCharm command and view IDs. Upstream attribution and licensing are retained below.
+
 <p align="center">
   <img src="media/icons/gitcharm.png" alt="GitCharm" width="160">
 </p>

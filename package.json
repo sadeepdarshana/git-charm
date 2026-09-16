@@ -1,13 +1,13 @@
 {
   "name": "gitcharm",
-  "displayName": "GitCharm",
-  "description": "JetBrains-like Git management for VS Code \u2014 Commit panel, Git Log with graph, multi-repo support and more.",
+  "displayName": "GitCharm (Personal)",
+  "description": "Personal GitCharm fork with customized commit controls, repository menus, and multi-repo workflows.",
   "version": "0.4.4",
-  "publisher": "RioNoir",
+  "publisher": "sadeepdarshana",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RioNoir/GitCharm.git"
+    "url": "https://github.com/sadeepdarshana/git-charm.git"
   },
   "engines": {
     "vscode": "^1.85.0"
