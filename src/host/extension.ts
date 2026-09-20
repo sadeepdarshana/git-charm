@@ -185,6 +185,17 @@ async function maybeNotifyIncomingCommits(manager: WorkspaceGitManager, globalSt
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  const togglePanel = vscode.window.createStatusBarItem(
+    'gitcharm.togglePanel', vscode.StatusBarAlignment.Left, Number.MAX_SAFE_INTEGER,
+  );
+  togglePanel.name = 'Toggle Panel';
+  togglePanel.text = '$(layout-panel)';
+  togglePanel.tooltip = 'Toggle Panel';
+  togglePanel.command = 'workbench.action.togglePanel';
+  togglePanel.accessibilityInformation = { label: 'Toggle Panel', role: 'button' };
+  context.subscriptions.push(togglePanel);
+  togglePanel.show();
+
   const log = initLogger(context);
   const manager = new WorkspaceGitManager(context);
 
