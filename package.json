@@ -44,7 +44,7 @@
       },
       {
         "id": "gitcharm/selectView/changes",
-        "label": "Select View \u2014 Changes",
+        "label": "Select View — Changes",
         "icon": {
           "light": "media/icons/select-view-changes-light.svg",
           "dark": "media/icons/select-view-changes-dark.svg"
@@ -52,7 +52,7 @@
       },
       {
         "id": "gitcharm/selectView/shelf",
-        "label": "Select View \u2014 Shelf",
+        "label": "Select View — Shelf",
         "icon": {
           "light": "media/icons/select-view-shelf-light.svg",
           "dark": "media/icons/select-view-shelf-dark.svg"
@@ -60,7 +60,7 @@
       },
       {
         "id": "gitcharm/selectView/stash",
-        "label": "Select View \u2014 Stash",
+        "label": "Select View — Stash",
         "icon": {
           "light": "media/icons/select-view-stash-light.svg",
           "dark": "media/icons/select-view-stash-dark.svg"
@@ -68,7 +68,7 @@
       },
       {
         "id": "gitcharm/selectView/worktree",
-        "label": "Select View \u2014 Worktrees",
+        "label": "Select View — Worktrees",
         "icon": {
           "light": "media/icons/select-view-worktree-light.svg",
           "dark": "media/icons/select-view-worktree-dark.svg"
@@ -76,7 +76,7 @@
       },
       {
         "id": "gitcharm/selectView/push",
-        "label": "Select View \u2014 Push",
+        "label": "Select View — Push",
         "icon": {
           "light": "media/icons/select-view-push-light.svg",
           "dark": "media/icons/select-view-push-dark.svg"
@@ -381,6 +381,13 @@
         "category": "GitCharm",
         "icon": "$(cloud-upload)",
         "toggled": "gitcharm.commitPanelActiveTab == push"
+      },
+      {
+        "command": "gitcharm.revealActiveFileInExplorer",
+        "title": "Select Opened File in Explorer",
+        "category": "GitCharm",
+        "icon": "$(target)",
+        "enablement": "activeEditor != empty"
       }
     ],
     "menus": {
@@ -424,6 +431,11 @@
           "command": "gitcharm.openSettings",
           "when": "view == gitcharm.commitPanel",
           "group": "navigation@12"
+        },
+        {
+          "command": "gitcharm.revealActiveFileInExplorer",
+          "when": "view == workbench.explorer.fileView",
+          "group": "navigation@0"
         }
       ],
       "editor/title": [

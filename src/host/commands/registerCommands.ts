@@ -27,6 +27,10 @@ export function registerCommands(
     }));
   }
   context.subscriptions.push(
+    vscode.commands.registerCommand('gitcharm.revealActiveFileInExplorer', () => {
+      return vscode.commands.executeCommand('workbench.files.action.showActiveFileInExplorer');
+    }),
+
     // Focus the Git Log panel in the bottom bar
     vscode.commands.registerCommand('gitcharm.openLog', () => {
       logPanel.focus();
