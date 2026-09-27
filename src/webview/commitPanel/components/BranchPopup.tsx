@@ -98,7 +98,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
       }}>
       <strong style={{ padding: '6px 8px', fontSize: 12 }}>{menu?.title ?? 'Loading branches…'}</strong>
       <div style={{ position: 'relative', margin: '2px 4px 6px', display: 'flex', minWidth: 0 }}>
-      <input ref={input} aria-label="Filter branch actions" placeholder="Filter branches and actions…" value={query}
+      <input ref={input} aria-label="Filter or create branches" placeholder="Filter / create branches…" value={query}
         onChange={event => setQuery(event.target.value)}
         onFocus={() => setFilterFocused(true)} onBlur={() => setFilterFocused(false)}
         style={{
