@@ -1333,6 +1333,11 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
         const session = this.branchPopup;
         if (!session?.present || session.requestId !== msg.requestId) break;
         try {
+          await this.manager.getRepo(session.repoId)?.fetchAll();
+        } catch (e) {
+          showGitError('branch-popup-fetch', e);
+        }
+        try {
           const status = await this.manager.getAllStatusesFresh();
           this.postChangelistsUpdate(status);
           this.post({ type: 'COMMIT_STATUS_UPDATE', repos: this.manager.getRepoMetas(), status });

@@ -101,7 +101,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px 2px 8px', minHeight: 28 }}>
         <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>{menu?.title ?? 'Loading branches…'}</strong>
-        {refreshItem && <FastTooltip label="Refresh"><button type="button" aria-label="Refresh" disabled={refreshing} onClick={() => {
+        {refreshItem && <FastTooltip label="Fetch & Refresh"><button type="button" aria-label="Fetch and refresh" disabled={refreshing} onClick={() => {
           setRefreshing(true);
           send({ type: 'COMMIT_BRANCH_POPUP_REFRESH', requestId });
         }}

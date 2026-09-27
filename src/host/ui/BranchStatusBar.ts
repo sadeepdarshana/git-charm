@@ -965,7 +965,8 @@ export class BranchStatusBar implements vscode.Disposable {
         action: () => this.showMenu(),
       },
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
-      {
+      // The popup's header refresh button fetches, so only the QuickPick needs Fetch.
+      ...(present ? [] : [{
         label: '$(repo-fetch) Fetch',
         toolbar: true,
         description: 'Fetch all remotes',
@@ -976,7 +977,7 @@ export class BranchStatusBar implements vscode.Disposable {
           );
           await this.refresh();
         },
-      },
+      }]),
       {
         label: '$(repo-pull) Pull',
         toolbar: true,
