@@ -106,10 +106,7 @@ export function RepositoryOverview({ repos, repoMetas, onOpenLog, onRepoAction }
               { id: 'shelve', label: '$(archive) Shelve Changes', separator: false },
               { id: 'stash', label: '$(git-stash) Stash Changes', separator: false },
             ] : []),
-            ...[
-              ['view-git-log', 'git-commit', 'View Git Log'],
-              ['refresh', 'refresh', 'Refresh'],
-            ].map(([id, icon, label]) => ({ id, label: `$(${icon}) ${label}`, separator: false, toolbar: true })),
+            { id: 'refresh', label: '$(refresh) Refresh', separator: false, toolbar: true },
           ];
         })()} /> }
     </aside>

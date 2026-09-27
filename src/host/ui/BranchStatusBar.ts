@@ -1098,13 +1098,6 @@ export class BranchStatusBar implements vscode.Disposable {
         action: () => this.newBranchSingleRepo(meta),
       },
       {
-        label: '$(tag) New Tag…',
-        toolbar: true,
-        toolbarGroup: 'manage',
-        description: `Create a new tag on HEAD in ${meta.name}`,
-        action: () => this.newTagSingleRepo(meta),
-      },
-      {
         label: '$(remote-explorer) Manage Remotes…',
         toolbar: true,
         description: 'Add, remove, or edit remote repositories',
