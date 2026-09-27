@@ -71,7 +71,8 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
   const extras = rootMenu ? repositoryItems.map(item => ({ ...item, id: `repo:${item.id}` })) : [];
   const items = [...extras, ...(menu?.items ?? [])].filter(item => !query || (!item.toolbar && !item.separator && `${item.label} ${item.description ?? ''}`.toLowerCase().includes(query.toLowerCase()))) ?? [];
   const toolbarItems = query ? [] : items.filter(item => item.toolbar && !item.separator && !item.id.startsWith('repo:'));
-  toolbarItems.push(...(query ? [] : extras.filter(item => item.toolbar)));
+  const refreshItem = extras.find(item => item.id === 'repo:refresh');
+  toolbarItems.push(...(query ? [] : extras.filter(item => item.toolbar && item !== refreshItem)));
   const listItems = items.filter(item => !item.toolbar);
   while (listItems[0]?.separator && !listItems[0].label) listItems.shift();
   const select = (id: string) => {
@@ -96,7 +97,15 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
         const next = (event.key === 'ArrowDown' || event.key === 'ArrowRight') ? (current + 1) % buttons.length : (current <= 0 ? buttons.length - 1 : current - 1);
         buttons[next]?.focus();
       }}>
-      <strong style={{ padding: '6px 8px', fontSize: 12 }}>{menu?.title ?? 'Loading branches…'}</strong>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px 2px 8px', minHeight: 28 }}>
+        <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>{menu?.title ?? 'Loading branches…'}</strong>
+        {refreshItem && <FastTooltip label="Refresh"><button type="button" aria-label="Refresh" onClick={() => select(refreshItem.id)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, flexShrink: 0, padding: 0, border: 0, borderRadius: 3, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+          onMouseEnter={event => { event.currentTarget.style.background = 'var(--vscode-menu-selectionBackground)'; }}
+          onMouseLeave={event => { event.currentTarget.style.background = 'transparent'; }}>
+          <Codicon name="refresh" style={{ fontSize: 14 }} />
+        </button></FastTooltip>}
+      </div>
       <div style={{ position: 'relative', margin: '2px 4px 6px', display: 'flex', minWidth: 0 }}>
       <input ref={input} aria-label="Filter or create branches" placeholder="Filter / create branches…" value={query}
         onChange={event => setQuery(event.target.value)}
