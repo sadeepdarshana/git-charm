@@ -147,44 +147,35 @@ function RepositoryRow({ repo, meta, onBranchMenu, onOpenLog, onContextMenu }: {
           <span style={{ ...styles.repoDot, background: color }} />
         </span>
         <span style={styles.repoName}>{name}</span>
-      <button
-        type="button"
-        style={{ ...styles.branchTag, color: branchTint, borderColor: `${branchTint}66`, background: `${branchTint}14` }}
-        title={`Right-click for branches and actions in ${name}`}
-        aria-haspopup="dialog"
-        onClick={event => event.stopPropagation()}
-        onDoubleClick={event => event.stopPropagation()}
-        onContextMenu={event => {
-          event.preventDefault();
-          event.stopPropagation();
-          onBranchMenu(event, repo.repoId);
-        }}
-      >
-        <Codicon name={repo.isDetachedHead ? 'git-commit' : 'git-branch'} style={styles.branchIcon} />
-        <span style={styles.branchName}>{branchName}</span>
-      </button>
-      </span>
-
-      <span style={styles.statuses}>
-        {changedPaths.size > 0 ? (
-          <span style={styles.changeBadge} title={`${changedPaths.size} changed file${changedPaths.size === 1 ? '' : 's'}`}>
-            <span style={styles.changeDot} />
-            {changedPaths.size}
+        <button
+          type="button"
+          style={{ ...styles.branchTag, color: branchTint, borderColor: `${branchTint}66`, background: `${branchTint}14` }}
+          title={`Right-click for branches and actions in ${name}`}
+          aria-haspopup="dialog"
+          onClick={event => event.stopPropagation()}
+          onDoubleClick={event => event.stopPropagation()}
+          onContextMenu={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            onBranchMenu(event, repo.repoId);
+          }}
+        >
+          <Codicon name={repo.isDetachedHead ? 'git-commit' : 'git-branch'} style={styles.branchIcon} />
+          <span style={styles.branchName}>{branchName}</span>
+        </button>
+        {(changedPaths.size > 0 || ahead > 0 || behind > 0) && (
+          <span style={styles.statuses}>
+            {changedPaths.size > 0 && (
+              <span style={styles.changeBadge} title={`${changedPaths.size} changed file${changedPaths.size === 1 ? '' : 's'}`}>
+                <span style={styles.changeDot} />
+                {changedPaths.size}
+              </span>
+            )}
+            {ahead > 0 && <span style={styles.syncCount} title={`${ahead} commit${ahead === 1 ? '' : 's'} ahead`}>↑{ahead}</span>}
+            {behind > 0 && <span style={styles.syncCount} title={`${behind} commit${behind === 1 ? '' : 's'} behind`}>↓{behind}</span>}
           </span>
-        ) : (
-          <Codicon name="check" style={styles.cleanIcon} title="Working tree clean" />
         )}
-        {ahead > 0 && <span style={styles.syncCount} title={`${ahead} commit${ahead === 1 ? '' : 's'} ahead`}>↑{ahead}</span>}
-        {behind > 0 && <span style={styles.syncCount} title={`${behind} commit${behind === 1 ? '' : 's'} behind`}>↓{behind}</span>}
       </span>
-      <button
-        type="button"
-        style={styles.logButton(hovered)}
-        title={`Open ${name} in Git Log`}
-        onClick={() => onOpenLog(repo.repoId)}
-      >
-        <Codicon name="git-commit" />
-      </button>
     </div>
   );
 }
@@ -198,14 +189,13 @@ const styles = {
   } as React.CSSProperties,
   list: { flex: 1, minHeight: 0 },
   row: (hovered: boolean): React.CSSProperties => ({
-    display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto 18px',
-    columnGap: '8px', alignItems: 'center', minWidth: 0, height: '28px', boxSizing: 'border-box',
+    display: 'flex', alignItems: 'center', minWidth: 0, height: '28px', boxSizing: 'border-box',
     padding: '3px 7px 3px 10px', borderBottom: '1px solid color-mix(in srgb, var(--vscode-panel-border) 45%, transparent)',
     background: hovered ? 'var(--vscode-list-hoverBackground)' : 'transparent',
     color: 'var(--vscode-foreground)', cursor: 'default', userSelect: 'none',
   }),
   repoIdentity: {
-    display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0,
+    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0,
   },
   repoDotWrap: {
     position: 'relative' as const, width: '9px', height: '9px', flexShrink: 0,
@@ -221,12 +211,6 @@ const styles = {
     flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
     fontSize: '11px', fontWeight: 650,
   },
-  logButton: (visible: boolean): React.CSSProperties => ({
-    width: '17px', height: '18px', padding: 0, flexShrink: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    border: 'none', borderRadius: '3px', background: 'transparent', color: 'var(--vscode-foreground)',
-    fontSize: '11px', cursor: 'pointer', opacity: visible ? 0.65 : 0,
-  }),
   branchTag: {
     display: 'flex', alignItems: 'center', gap: '3px', minWidth: 0, maxWidth: '50%', flexShrink: 0, height: '18px',
     padding: '0 5px', border: '1px solid', borderRadius: '8px', cursor: 'pointer',
@@ -234,13 +218,12 @@ const styles = {
   } as React.CSSProperties,
   branchIcon: { fontSize: '10px', flexShrink: 0 } as React.CSSProperties,
   branchName: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
-  statuses: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', minWidth: 0 },
+  statuses: { display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 },
   changeBadge: {
     display: 'inline-flex', alignItems: 'center', gap: '2px', height: '16px', padding: '0 4px',
     borderRadius: '8px', background: 'var(--vscode-badge-background)', color: 'var(--vscode-badge-foreground)',
     fontSize: '9px', fontWeight: 700,
   },
   changeDot: { width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor', opacity: 0.8 },
-  cleanIcon: { fontSize: '11px', color: 'var(--vscode-testing-iconPassed, #73c991)', opacity: 0.75 } as React.CSSProperties,
   syncCount: { fontSize: '9px', fontWeight: 650, opacity: 0.62 },
 };
