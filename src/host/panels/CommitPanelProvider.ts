@@ -31,7 +31,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
   private logProvider?: GitLogPanelProvider;
   private undockedPanel?: UndockedPanelProvider;
   private branchStatusBar?: BranchStatusBar;
-  private branchPopup?: { repoId: string; requestId: string; menuId: number; items: BranchMenuItem[] };
+  private branchPopup?: { repoId: string; requestId: string; menuId: number; items: BranchMenuItem[]; present?: BranchMenuPresenter };
   private changelistService?: ChangelistService;
   private badgeController?: import('../ui/BadgeController').BadgeController;
   // When set, post() sends to the undocked panel instead of the sidebar
@@ -1309,6 +1309,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
           if (target === 'undocked') this.undockedPanel?.postToCommit(response);
           else void this.view?.webview.postMessage(response);
         };
+        session.present = present;
         await this.branchStatusBar.showRepoBranchMenu(meta, present);
         break;
       }
@@ -1326,6 +1327,20 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
         this.branchPopup = undefined;
         const meta = this.manager.getRepoMetas().find(repo => repo.id === session.repoId);
         if (meta) await this.branchStatusBar?.newBranchSingleRepo(meta, msg.name);
+        break;
+      }
+      case 'COMMIT_BRANCH_POPUP_REFRESH': {
+        const session = this.branchPopup;
+        if (!session?.present || session.requestId !== msg.requestId) break;
+        try {
+          const status = await this.manager.getAllStatusesFresh();
+          this.postChangelistsUpdate(status);
+          this.post({ type: 'COMMIT_STATUS_UPDATE', repos: this.manager.getRepoMetas(), status });
+        } catch (e) {
+          logWarn('branch-popup-refresh', String(e));
+        }
+        const meta = this.manager.getRepoMetas().find(repo => repo.id === session.repoId);
+        if (meta && this.branchPopup === session) await this.branchStatusBar?.showRepoBranchMenu(meta, session.present);
         break;
       }
       case 'COMMIT_BRANCH_POPUP_CLOSE':

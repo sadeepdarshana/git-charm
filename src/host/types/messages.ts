@@ -106,6 +106,7 @@ export type CommitToHostMsg =
   | { type: 'COMMIT_OPEN_BRANCH_POPUP'; repoId: string; requestId: string }
   | { type: 'COMMIT_BRANCH_POPUP_SELECT'; requestId: string; menuId: number; id: string }
   | { type: 'COMMIT_BRANCH_POPUP_CLOSE'; requestId: string }
+  | { type: 'COMMIT_BRANCH_POPUP_REFRESH'; requestId: string }
   | { type: 'COMMIT_REQUEST_STATUS' }
   | { type: 'COMMIT_REQUEST_DIFF'; requestId: string; repoId: string; filePath: string; staged: boolean }
   | { type: 'COMMIT_STAGE_FILES'; requestId: string; repoId: string; paths: string[] }

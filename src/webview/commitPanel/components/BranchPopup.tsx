@@ -17,6 +17,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
   const [query, setQuery] = useState('');
   const [filterFocused, setFilterFocused] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
@@ -26,6 +27,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
       if (event.data.type !== 'COMMIT_BRANCH_POPUP' || event.data.requestId !== requestId) return;
       setMenu(event.data);
       setQuery('');
+      setRefreshing(false);
       setVisible(true);
     };
     window.addEventListener('message', receive);
@@ -99,11 +101,14 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px 2px 8px', minHeight: 28 }}>
         <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>{menu?.title ?? 'Loading branches…'}</strong>
-        {refreshItem && <FastTooltip label="Refresh"><button type="button" aria-label="Refresh" onClick={() => select(refreshItem.id)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, flexShrink: 0, padding: 0, border: 0, borderRadius: 3, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+        {refreshItem && <FastTooltip label="Refresh"><button type="button" aria-label="Refresh" disabled={refreshing} onClick={() => {
+          setRefreshing(true);
+          send({ type: 'COMMIT_BRANCH_POPUP_REFRESH', requestId });
+        }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, flexShrink: 0, padding: 0, border: 0, borderRadius: 3, background: 'transparent', color: 'inherit', cursor: refreshing ? 'default' : 'pointer', opacity: refreshing ? 0.6 : 1 }}
           onMouseEnter={event => { event.currentTarget.style.background = 'var(--vscode-menu-selectionBackground)'; }}
           onMouseLeave={event => { event.currentTarget.style.background = 'transparent'; }}>
-          <Codicon name="refresh" style={{ fontSize: 14 }} />
+          <Codicon name={refreshing ? 'loading' : 'refresh'} className={refreshing ? 'codicon-modifier-spin' : undefined} style={{ fontSize: 14 }} />
         </button></FastTooltip>}
       </div>
       <div style={{ position: 'relative', margin: '2px 4px 6px', display: 'flex', minWidth: 0 }}>
