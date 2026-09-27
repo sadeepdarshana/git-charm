@@ -7,7 +7,7 @@ import type { GitLogPanelProvider } from '../panels/GitLogPanelProvider';
 import { formatGitError, showGitError, getRawErrorDetail } from '../utils/gitErrorUtils';
 import { logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
 
-export type BranchMenuItem = vscode.QuickPickItem & { toolbar?: boolean; toolbarGroup?: 'manage'; action: () => Promise<void> | void };
+export type BranchMenuItem = vscode.QuickPickItem & { toolbar?: boolean; action: () => Promise<void> | void };
 export type BranchMenuPresenter = (items: BranchMenuItem[], title: string) => void;
 
 export class BranchStatusBar implements vscode.Disposable {
@@ -1090,13 +1090,13 @@ export class BranchStatusBar implements vscode.Disposable {
         },
       },
       { label: '', kind: vscode.QuickPickItemKind.Separator, action: async () => {} },
-      {
+      // The popup creates branches from its filter box; the QuickPick has no such box.
+      ...(present ? [] : [{
         label: '$(add) New Branch…',
         toolbar: true,
-        toolbarGroup: 'manage',
         description: `Create a new branch in ${meta.name}`,
         action: () => this.newBranchSingleRepo(meta),
-      },
+      }]),
       {
         label: '$(remote-explorer) Manage Remotes…',
         toolbar: true,

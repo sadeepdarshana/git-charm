@@ -1302,7 +1302,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
           const response: HostToCommitMsg = {
             type: 'COMMIT_BRANCH_POPUP', requestId: session.requestId, menuId: session.menuId, title,
             items: items.map((item, index) => ({
-              id: String(index), label: item.label, description: item.description, toolbar: item.toolbar, toolbarGroup: item.toolbarGroup,
+              id: String(index), label: item.label, description: item.description, toolbar: item.toolbar,
               separator: item.kind === vscode.QuickPickItemKind.Separator,
             })),
           };

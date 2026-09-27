@@ -60,7 +60,7 @@ export interface UnpushedCommit {
 // ─── Commit Panel: Host → WebView ────────────────────────────────────────────
 
 export interface BranchPopupItem {
-  id: string; label: string; description?: string; separator: boolean; toolbar?: boolean; toolbarGroup?: 'manage';
+  id: string; label: string; description?: string; separator: boolean; toolbar?: boolean;
 }
 
 export type HostToCommitMsg =
