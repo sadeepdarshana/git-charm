@@ -14,6 +14,7 @@ import type {
 import type { StashEntry, UnpushedCommit } from '../types/messages';
 import { parseDiff, buildMonacoContents, detectLanguage } from './DiffParser';
 import { getVscodeRepository } from './VscodeGitApi';
+import { readBranchMenuData } from './BranchMenuData';
 import { ForcePushMode, Status, RefType } from './git.d';
 
 const STATUS_MAP: Record<string, GitFileStatus> = {
@@ -384,6 +385,10 @@ export class GitService {
       detachedHash,
       detachedFullHash,
     };
+  }
+
+  getBranchMenuData() {
+    return readBranchMenuData(this.repoId, this.rootPath, this._pendingDetachedTag);
   }
 
   async getBranches(): Promise<BranchInfo[]> {

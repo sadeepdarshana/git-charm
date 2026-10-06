@@ -695,6 +695,39 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
 
   private async handleMessage(msg: CommitToHostMsg, webview: vscode.Webview): Promise<void> {
     switch (msg.type) {
+      case 'COMMIT_REMOVE_GIT_ROOT': {
+        const meta = this.manager.getRepoMetas().find(repo => repo.id === msg.repoId);
+        if (!meta) break;
+        try {
+          await this.manager.setGitRootRemoved(meta.rootPath, true);
+          const action = await vscode.window.showInformationMessage(`Removed Git root "${meta.name}" from GitCharm. Files remain unchanged.`, 'Undo');
+          if (action === 'Undo') await this.manager.setGitRootRemoved(meta.rootPath, false);
+        } catch (error) {
+          void vscode.window.showErrorMessage(`Unable to remove Git root: ${formatGitError(error)}`);
+        }
+        break;
+      }
+      case 'GIT_ROOT_SCAN_GET_OPTIONS':
+        this.post({ type: 'GIT_ROOT_SCAN_OPTIONS', options: this.manager.getAnalysisOptions(), folders: (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath) });
+        break;
+      case 'GIT_ROOT_SCAN_ANALYZE':
+        try {
+          const result = await this.manager.analyzeGitRoots(msg.options);
+          this.broadcastCommit({ type: 'GIT_ROOT_SCAN_RESULT', requestId: msg.requestId, ...result });
+        } catch (error) {
+          this.broadcastCommit({ type: 'GIT_ROOT_SCAN_RESULT', requestId: msg.requestId, error: formatGitError(error) });
+        }
+        break;
+
+      case 'GIT_ROOT_SCAN_APPLY':
+        try {
+          const summary = await this.manager.applyGitRootSelection(msg.reviewId, msg.selectedRoots);
+          this.broadcastCommit({ type: 'GIT_ROOT_SCAN_APPLIED', requestId: msg.requestId, summary });
+        } catch (error) {
+          this.broadcastCommit({ type: 'GIT_ROOT_SCAN_APPLIED', requestId: msg.requestId, error: formatGitError(error) });
+        }
+        break;
+
       case 'COMMIT_REQUEST_STATUS': {
         const [repos, status, iconTheme] = await Promise.all([
           Promise.resolve(this.manager.getRepoMetas()),
@@ -1292,7 +1325,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
       case 'COMMIT_OPEN_BRANCH_POPUP': {
         const meta = this.manager.getRepoMetas().find(repo => repo.id === msg.repoId);
         if (!meta || !this.branchStatusBar) break;
-        const session = { repoId: msg.repoId, requestId: msg.requestId, menuId: 0, items: [] as BranchMenuItem[] };
+        const session: NonNullable<CommitPanelProvider['branchPopup']> = { repoId: msg.repoId, requestId: msg.requestId, menuId: 0, items: [] };
         this.branchPopup = session;
         const target = this.activeReplyTarget;
         const present: BranchMenuPresenter = (items, title) => {
@@ -1310,7 +1343,14 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
           else void this.view?.webview.postMessage(response);
         };
         session.present = present;
-        await this.branchStatusBar.showRepoBranchMenu(meta, present);
+        try {
+          await this.branchStatusBar.showRepoBranchMenu(meta, present);
+        } catch (error) {
+          if (this.branchPopup !== session) break;
+          const response: HostToCommitMsg = { type: 'COMMIT_BRANCH_POPUP', requestId: session.requestId, menuId: ++session.menuId, title: `${meta.name} — Branches`, items: [], error: formatGitError(error) };
+          if (target === 'undocked') this.undockedPanel?.postToCommit(response);
+          else void this.view?.webview.postMessage(response);
+        }
         break;
       }
       case 'COMMIT_BRANCH_POPUP_SELECT': {

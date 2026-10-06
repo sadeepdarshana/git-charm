@@ -1,3 +1,4 @@
+import { RepositoryLabel } from '../../shared/RepositoryLabel';
 import React, { useEffect, useRef, useState } from 'react';
 import type { FileStatus, RepoStatus } from '../../shared/types';
 import type { ViewMode } from '../store/commitStore';
@@ -104,7 +105,7 @@ export function ProjectGroup({
             : <span style={styles.dot(repoColor)} />
           }
           <span style={styles.name}>
-            {isWorktree && mainWorktreePath ? mainWorktreePath.split('/').pop() ?? repoName : repoName}
+            <RepositoryLabel rootPath={repoId} displayPath={repoName} />
           </span>
           {isSubmodule && (
             <span style={styles.submoduleBadge} title={submodulePath ? `Submodule: ${submodulePath}` : 'Submodule'}>
@@ -196,7 +197,7 @@ export function SingleRepoHeader({ repoStatus, repoName, repoColor, isSubmodule,
       <div style={styles.headerMain} onClick={() => onBranchClick(repoId)}>
         <Codicon name="repo" style={styles.repoIcon} />
         <span style={styles.name}>
-          {isWorktree && mainWorktreePath ? mainWorktreePath.split('/').pop() ?? repoName : repoName}
+          <RepositoryLabel rootPath={repoId} displayPath={repoName} />
         </span>
         {isSubmodule && (
           <span style={styles.submoduleBadge} title={submodulePath ? `Submodule: ${submodulePath}` : 'Submodule'}>

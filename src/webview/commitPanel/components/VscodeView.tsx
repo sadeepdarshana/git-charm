@@ -1,3 +1,4 @@
+import { RepositoryLabel } from '../../shared/RepositoryLabel';
 import React, { useState } from 'react';
 import type { FileStatus, RepoMeta, RepoStatus } from '../../shared/types';
 import type { ViewMode } from '../store/commitStore';
@@ -340,7 +341,7 @@ function VscodeRepoGroup({ repoStatus, repoName, repoColor, staged, files, viewM
             <Codicon name={collapsed ? 'chevron-right' : 'chevron-down'} style={{ fontSize: '12px', opacity: 0.7, flexShrink: 0 }} />
             <span style={repoDotStyle(repoColor)} />
             <span style={repoNameStyle}>
-              {isWorktree && mainWorktreePath ? mainWorktreePath.split('/').pop() ?? repoName : repoName}
+              <RepositoryLabel rootPath={repoId} displayPath={repoName} />
             </span>
             {isSubmodule && (
               <span style={submoduleBadgeStyle} title={submodulePath ? `Submodule: ${submodulePath}` : 'Submodule'}>SUB</span>

@@ -943,6 +943,9 @@ function App() {
       case 'reveal-os':
         send({ type: 'COMMIT_REVEAL_REPO_IN_OS', repoId: ctx.repoId });
         break;
+      case 'remove-git-root':
+        send({ type: 'COMMIT_REMOVE_GIT_ROOT', repoId: ctx.repoId });
+        break;
       case 'hide-repo':
         send({ type: 'COMMIT_HIDE_REPO', repoId: ctx.repoId });
         break;
@@ -1969,6 +1972,7 @@ function App() {
           ];
           repoItems = baseItems;
         }
+        repoItems = [...repoItems, { separator: true }, { id: 'remove-git-root', label: 'Remove Git Root', icon: 'remove' }];
         return (
           <ContextMenu
             x={repoCtxMenu.x} y={repoCtxMenu.y}

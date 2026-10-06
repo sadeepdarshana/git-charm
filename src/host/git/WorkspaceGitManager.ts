@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { scanRepositoryRootsInWorker } from './RepositoryScanRunner';
 import { GitService } from './GitService';
+import { DEFAULT_REPOSITORY_SCAN_OPTIONS, createScanIgnore, type RepositoryScanOptions, type GitRootAnalysisResult, type GitRootReviewItem } from './RepositoryScanner';
 import type { WorktreeEntry } from './GitService';
 import { getVscodeGitApi, getVscodeRepository } from './VscodeGitApi';
 import type { BranchInfo, CommitNode, RepoMeta, WorkspaceStatus } from '../types/git';
 import { PROJECT_COLORS } from '../types/workspace';
+import { logInfo } from '../utils/Logger';
 import { formatGitError } from '../utils/gitErrorUtils';
 
 const MAX_SUBMODULE_DEPTH = 5;
@@ -19,6 +22,9 @@ type WorktreeListener = (repoId: string) => void;
 export type { WorktreeEntry };
 
 export class WorkspaceGitManager implements vscode.Disposable {
+  private analysisRunning = false;
+  private freshStatusRequest?: Promise<WorkspaceStatus>;
+  private rootReview?: { id: string; roots: GitRootReviewItem[]; folderKeys: string[] };
   private repos = new Map<string, GitService>();
   private repoMetas = new Map<string, RepoMeta>();
   /** Per-repo watchers — recreated on reinitialize(). */
@@ -150,6 +156,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
   }
 
   private reinitialize(): void {
+    this.freshStatusRequest = undefined;
     this.disposeWatchers();
     this.repos.clear();
     this.repoMetas.clear();
@@ -166,7 +173,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
     const colorIdx = { value: 0 };
     folders.forEach((folder) => {
       const gitDir = path.join(folder.uri.fsPath, '.git');
-      if (fs.existsSync(gitDir)) {
+      if (fs.existsSync(gitDir) && !this.isGitRootRemoved(folder.uri.fsPath)) {
         const repoId = folder.uri.fsPath;
         const color = customColors[folder.name] ?? PROJECT_COLORS[colorIdx.value++ % PROJECT_COLORS.length];
 
@@ -188,6 +195,19 @@ export class WorkspaceGitManager implements vscode.Disposable {
       });
     }
 
+    // Explicitly analyzed roots survive reloads independently of automatic scan depth.
+    const savedRoots = this.context.workspaceState.get<Record<string, string[]>>('gitcharm.analyzedRoots', {});
+    for (const folder of folders) {
+      for (const relativeRoot of savedRoots[folder.uri.toString()] ?? []) {
+        const repoPath = path.resolve(folder.uri.fsPath, relativeRoot);
+        const relative = path.relative(folder.uri.fsPath, repoPath);
+        if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+        if (fs.existsSync(path.join(repoPath, '.git'))) {
+          this.registerScannedRepository(repoPath, folder.uri.fsPath, colorIdx, customColors);
+        }
+      }
+    }
+
     // Pick up repositories VS Code's built-in Git extension already discovered but that
     // this scan missed — most notably a parent-folder repo found via
     // git.openRepositoryInParentFolders when the workspace root is a subfolder of the repo
@@ -207,7 +227,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
 
     for (const vsRepo of gitApi.repositories) {
       const repoPath = path.normalize(vsRepo.rootUri.fsPath);
-      if (this.repos.has(repoPath)) continue;
+      if (this.repos.has(repoPath) || this.isGitRootRemoved(repoPath)) continue;
 
       const color = customColors[path.basename(repoPath)] ?? PROJECT_COLORS[colorIdx.value++ % PROJECT_COLORS.length];
       const { isWorktree, mainWorktreePath } = this.detectLinkedWorktree(repoPath);
@@ -227,6 +247,150 @@ export class WorkspaceGitManager implements vscode.Disposable {
       this.discoverSubmodules(repoPath, repoPath, 1, colorIdx, customColors);
       this.setupRepositoryAuxWatchers(repoPath, repoPath);
     }
+  }
+
+  private isGitRootRemoved(repoPath: string): boolean {
+    return this.getRemovedGitRoots().includes(path.normalize(repoPath));
+  }
+
+  getRemovedGitRoots(): string[] {
+    return this.context.workspaceState.get<string[]>('gitcharm.removedGitRoots', []);
+  }
+
+  /** Only updates GitCharm workspace storage; repository files are untouched. */
+  async setGitRootRemoved(repoPath: string, removed: boolean): Promise<void> {
+    const normalized = path.normalize(repoPath);
+    const excluded = new Set(this.getRemovedGitRoots());
+    if (removed) excluded.add(normalized);
+    else excluded.delete(normalized);
+    await this.context.workspaceState.update('gitcharm.removedGitRoots', [...excluded]);
+
+    const saved = { ...this.context.workspaceState.get<Record<string, string[]>>('gitcharm.analyzedRoots', {}) };
+    // Remove from every saved folder mapping, including overlapping workspace roots.
+    for (const [key, roots] of Object.entries(saved)) {
+      const workspaceRoot = vscode.Uri.parse(key).fsPath;
+      saved[key] = roots.filter(relative => path.normalize(path.resolve(workspaceRoot, relative)) !== normalized);
+    }
+    if (!removed) {
+      for (const folder of vscode.workspace.workspaceFolders ?? []) {
+        const relative = path.relative(folder.uri.fsPath, normalized);
+        if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+        const key = folder.uri.toString();
+        saved[key] = [...new Set([...(saved[key] ?? []), relative])];
+      }
+    }
+    await this.context.workspaceState.update('gitcharm.analyzedRoots', saved);
+    this.reinitializeAndRefresh();
+  }
+
+  async restoreRemovedGitRoots(): Promise<void> {
+    const roots = this.getRemovedGitRoots();
+    if (!roots.length) {
+      await vscode.window.showInformationMessage('No Git roots have been removed from this workspace.');
+      return;
+    }
+    const selected = await vscode.window.showQuickPick(roots.map(root => ({ label: path.basename(root), description: root, root })), {
+      title: 'Restore Removed Git Roots', placeHolder: 'Select Git roots to manage again', canPickMany: true,
+    });
+    for (const item of selected ?? []) await this.setGitRootRemoved(item.root, false);
+  }
+
+  getAnalysisOptions(): RepositoryScanOptions {
+    return this.context.workspaceState.get<RepositoryScanOptions>('gitcharm.analysisOptions', DEFAULT_REPOSITORY_SCAN_OPTIONS);
+  }
+
+  async analyzeGitRoots(options: RepositoryScanOptions): Promise<GitRootAnalysisResult> {
+    if (this.analysisRunning) throw new Error('A Git root scan is already running.');
+    createScanIgnore(options); // Validate before saving preferences or starting traversal.
+    this.analysisRunning = true;
+    try {
+      return await this.runGitRootAnalysis(options);
+    } finally {
+      this.analysisRunning = false;
+    }
+  }
+
+  private async runGitRootAnalysis(options: RepositoryScanOptions): Promise<GitRootAnalysisResult> {
+    const folders = [...(vscode.workspace.workspaceFolders ?? [])];
+    if (!folders.length) throw new Error('Open a workspace folder before analyzing Git roots.');
+    await this.context.workspaceState.update('gitcharm.analysisOptions', options);
+    return vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'Analyze for Git Roots',
+      cancellable: true,
+    }, async (progress, token) => {
+      const discoveries: Array<{ folder: vscode.WorkspaceFolder; roots: string[] }> = [];
+      let unreadable = 0;
+      let visited = 0;
+      const started = Date.now();
+      let lastReport = 0;
+      for (const folder of folders) {
+        const result = await scanRepositoryRootsInWorker(folder.uri.fsPath, options, token, (relative, count) => {
+          if (Date.now() - lastReport < 100) return;
+          lastReport = Date.now();
+          progress.report({ message: `${visited + count} folders · ${((Date.now() - started) / 1000).toFixed(1)}s · ${folder.name}/${relative}` });
+        });
+        if (result.cancelled || token.isCancellationRequested) return { summary: 'Scan cancelled. Managed Git roots were not changed.' };
+        discoveries.push({ folder, roots: result.roots });
+        visited += result.visited;
+        unreadable += result.unreadable;
+        logInfo('repository-scan', `${folder.uri.fsPath}: ${result.visited} folders, ${result.roots.length} roots, ${result.elapsedMs}ms, ${result.unreadable} unreadable folders`);
+      }
+      const candidates = new Map<string, GitRootReviewItem>();
+      for (const meta of this.getRepoMetas()) {
+        candidates.set(meta.rootPath, { rootPath: meta.rootPath, name: meta.name, existing: true, detected: false });
+      }
+      for (const { folder, roots } of discoveries) {
+        if (!vscode.workspace.workspaceFolders?.some(current => current.uri.toString() === folder.uri.toString())) continue;
+        for (const root of roots) {
+          const existing = candidates.get(root);
+          candidates.set(root, { rootPath: root, name: existing?.name ?? (path.relative(folder.uri.fsPath, root) || folder.name), existing: !!existing, detected: true });
+        }
+      }
+      const roots = [...candidates.values()].sort((a, b) => a.rootPath.localeCompare(b.rootPath));
+      const reviewId = `${Date.now()}-${Math.random()}`;
+      this.rootReview = { id: reviewId, roots, folderKeys: folders.map(folder => folder.uri.toString()) };
+      return { reviewId, roots, summary: `Found ${roots.filter(root => root.detected).length} Git roots in ${visited} folders (${((Date.now() - started) / 1000).toFixed(1)}s). Review the selections before applying.${unreadable ? ` Skipped ${unreadable} unreadable folders.` : ''}` };
+
+    });
+  }
+
+  async applyGitRootSelection(reviewId: string, selectedRoots: string[]): Promise<string> {
+    if (this.analysisRunning) throw new Error('Wait for the running scan before applying a selection.');
+    const review = this.rootReview;
+    if (!review || review.id !== reviewId) throw new Error('These scan results are outdated. Analyze again.');
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (JSON.stringify(folders.map(folder => folder.uri.toString())) !== JSON.stringify(review.folderKeys)) {
+      throw new Error('Workspace folders changed. Analyze again before applying.');
+    }
+    const listed = new Set(review.roots.map(root => root.rootPath));
+    const selected = new Set(selectedRoots);
+    if ([...selected].some(root => !listed.has(root))) throw new Error('Selection contains a root outside these scan results.');
+    const removed = new Set(this.getRemovedGitRoots());
+    const saved = { ...this.context.workspaceState.get<Record<string, string[]>>('gitcharm.analyzedRoots', {}) };
+    for (const [key, paths] of Object.entries(saved)) {
+      const workspaceRoot = vscode.Uri.parse(key).fsPath;
+      saved[key] = paths.filter(relative => !listed.has(path.resolve(workspaceRoot, relative)));
+    }
+    for (const root of listed) {
+      if (selected.has(root)) removed.delete(path.normalize(root));
+      else removed.add(path.normalize(root));
+    }
+    for (const folder of folders) {
+      const key = folder.uri.toString();
+      const paths = new Set(saved[key] ?? []);
+      for (const root of selected) {
+        const relative = path.relative(folder.uri.fsPath, root);
+        if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+        paths.add(relative);
+      }
+      saved[key] = [...paths];
+    }
+    await this.context.workspaceState.update('gitcharm.analyzedRoots', saved);
+    await this.context.workspaceState.update('gitcharm.removedGitRoots', [...removed]);
+    this.rootReview = undefined;
+    this.reinitializeAndRefresh();
+    return `Applied selection: managing ${selected.size} Git roots; ${listed.size - selected.size} unchecked roots excluded.`;
   }
 
   private getRepositoryScanMaxDepth(): number {
@@ -380,7 +544,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
     customColors: Record<string, string>,
   ): void {
     const normalizedRepoPath = path.normalize(repoPath);
-    if (this.repos.has(normalizedRepoPath)) return;
+    if (this.repos.has(normalizedRepoPath) || this.isGitRootRemoved(normalizedRepoPath)) return;
 
     const relPath = path.relative(workspaceRoot, normalizedRepoPath).split(path.sep).join('/');
     const displayName = relPath && !relPath.startsWith('..') ? relPath : path.basename(normalizedRepoPath);
@@ -439,7 +603,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
       if (!fs.existsSync(subAbsPath)) continue;
 
       // Avoid double-registering a path that's already a workspace folder
-      if (this.repos.has(subAbsPath)) continue;
+      if (this.repos.has(subAbsPath) || this.isGitRootRemoved(subAbsPath)) continue;
 
       // Guard against circular references
       if (subAbsPath === parentPath || parentPath.startsWith(subAbsPath + path.sep)) continue;
@@ -707,6 +871,7 @@ export class WorkspaceGitManager implements vscode.Disposable {
 
   private applySubmoduleStatus(repos: import('../types/git').RepoStatus[]): import('../types/git').RepoStatus[] {
     const submodulePaths = this.buildSubmodulePaths();
+    const gitDirectoryChecks = new Map<string, boolean>();
     return repos.map(r => {
       const subPaths = submodulePaths.get(r.repoId);
 
@@ -727,7 +892,9 @@ export class WorkspaceGitManager implements vscode.Disposable {
         const repoRoot = r.repoId;
         let dir = f.absolutePath;
         while (dir.startsWith(repoRoot + path.sep)) {
-          if (fs.existsSync(path.join(dir, '.git'))) return true;
+          let hasGit = gitDirectoryChecks.get(dir);
+          if (hasGit === undefined) { hasGit = fs.existsSync(path.join(dir, '.git')); gitDirectoryChecks.set(dir, hasGit); }
+          if (hasGit) return true;
           dir = path.dirname(dir);
         }
         return false;
@@ -756,6 +923,17 @@ export class WorkspaceGitManager implements vscode.Disposable {
 
   /** Like getAllStatuses but forces VSCode's git extension to re-read from disk first. */
   async getAllStatusesFresh(): Promise<WorkspaceStatus> {
+    if (this.freshStatusRequest) return this.freshStatusRequest;
+    const request = this.readAllStatusesFresh();
+    this.freshStatusRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (this.freshStatusRequest === request) this.freshStatusRequest = undefined;
+    }
+  }
+
+  private async readAllStatusesFresh(): Promise<WorkspaceStatus> {
     const results = await Promise.allSettled(
       Array.from(this.repos.values()).map(r => r.getStatusFresh())
     );

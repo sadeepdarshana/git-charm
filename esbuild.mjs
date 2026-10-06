@@ -6,9 +6,9 @@ const isWatch = argv.includes('--watch');
 
 /** @type {import('esbuild').BuildOptions} */
 const options = {
-  entryPoints: ['src/host/extension.ts'],
+  entryPoints: { extension: 'src/host/extension.ts', repositoryScanWorker: 'src/host/git/RepositoryScanWorker.ts' },
   bundle: true,
-  outfile: 'out/host/extension.js',
+  outdir: 'out/host',
   format: 'cjs',
   platform: 'node',
   target: 'node18',

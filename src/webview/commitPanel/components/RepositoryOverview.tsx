@@ -1,3 +1,4 @@
+import { repositoryFolderName } from '../../shared/RepositoryLabel';
 import React, { useEffect, useRef, useState } from 'react';
 import type { RepoMeta, RepoStatus } from '../../shared/types';
 import { branchColor, tagColor } from '../../shared/branchColors';
@@ -106,6 +107,7 @@ export function RepositoryOverview({ repos, repoMetas, onOpenLog, onRepoAction }
               { id: 'shelve', label: '$(archive) Shelve Changes', separator: false },
               { id: 'stash', label: '$(git-stash) Stash Changes', separator: false },
             ] : []),
+            { id: 'remove-git-root', label: '$(remove) Remove Git Root', separator: false },
             { id: 'refresh', label: '$(refresh) Refresh', separator: false, toolbar: true },
           ];
         })()} /> }
@@ -121,7 +123,7 @@ function RepositoryRow({ repo, meta, onBranchMenu, onOpenLog, onContextMenu }: {
   onContextMenu: (event: React.MouseEvent, repoId: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const name = meta?.name ?? repo.repoId.split('/').pop() ?? repo.repoId;
+  const name = repositoryFolderName(meta?.rootPath ?? repo.repoId);
   const color = meta?.color ?? '#6aaed0';
   const branchName = repo.branch.detachedTag ?? repo.branch.detachedHash ?? (repo.branch.name || 'HEAD');
   const branchTint = repo.branch.detachedTag ? tagColor() : branchColor(repo.branch.name, false);
@@ -132,7 +134,7 @@ function RepositoryRow({ repo, meta, onBranchMenu, onOpenLog, onContextMenu }: {
   return (
     <div
       style={styles.row(hovered)}
-      title={`${name}\n${repo.isDetachedHead ? 'Detached at' : 'On branch'} ${branchName}`}
+      title={`${meta?.rootPath ?? repo.repoId}\n${repo.isDetachedHead ? 'Detached at' : 'On branch'} ${branchName}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onDoubleClick={() => onOpenLog(repo.repoId)}

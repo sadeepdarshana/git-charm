@@ -5,7 +5,7 @@ import type { RepoMeta } from '../types/git';
 import { isPrimaryBranch } from '../utils/branchUtils';
 import type { GitLogPanelProvider } from '../panels/GitLogPanelProvider';
 import { formatGitError, showGitError, getRawErrorDetail } from '../utils/gitErrorUtils';
-import { logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
+import { logDebug, logInfo, logWarn, logError, showLogChannel } from '../utils/Logger';
 
 export type BranchMenuItem = vscode.QuickPickItem & { toolbar?: boolean; action: () => Promise<void> | void };
 export type BranchMenuPresenter = (items: BranchMenuItem[], title: string) => void;
@@ -947,11 +947,9 @@ export class BranchStatusBar implements vscode.Disposable {
     const repo = this.manager.getRepo(meta.id);
     if (!repo) return;
 
-    const [branches, currentBranch, tags] = await Promise.all([
-      repo.getBranches(),
-      repo.getCurrentBranch(),
-      repo.getTags(),
-    ]);
+    const started = Date.now();
+    const { branches, currentBranch, tags } = await repo.getBranchMenuData();
+    logDebug('branch-menu', `${meta.name}: loaded ${branches.length} branches and ${tags.length} tags in ${Date.now() - started}ms`);
     const local = branches.filter(b => !b.isRemote);
     const remote = branches.filter(b => b.isRemote);
     const effectiveBranchName = currentBranch.detachedTag ?? currentBranch.detachedHash ?? currentBranch.name;

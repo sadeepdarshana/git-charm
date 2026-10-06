@@ -45,6 +45,8 @@ export function registerCommands(
       showLogChannel();
     }),
 
+    vscode.commands.registerCommand('gitcharm.restoreRemovedGitRoots', () => manager?.restoreRemovedGitRoots()),
+
     vscode.commands.registerCommand('gitcharm.refreshCommitPanel', () => {
       commitPanel.refresh();
     }),

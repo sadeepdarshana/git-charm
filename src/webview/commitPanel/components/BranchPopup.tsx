@@ -69,7 +69,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
   }, [visible, onClose]);
 
   if (!visible) return null;
-  const rootMenu = menu?.items.some(item => item.toolbar);
+  const rootMenu = !menu || !!menu.error || menu.items.some(item => item.toolbar);
   const extras = rootMenu ? repositoryItems.map(item => ({ ...item, id: `repo:${item.id}` })) : [];
   const items = [...extras, ...(menu?.items ?? [])].filter(item => !query || (!item.toolbar && !item.separator && `${item.label} ${item.description ?? ''}`.toLowerCase().includes(query.toLowerCase()))) ?? [];
   const toolbarItems = query ? [] : items.filter(item => item.toolbar && !item.separator && !item.id.startsWith('repo:'));
@@ -143,6 +143,8 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
           </button></FastTooltip>;
         })}
       </div>}
+      {!menu && <div role="status" style={{ padding: 8, opacity: .7 }}>Loading branches…</div>}
+      {menu?.error && <div role="alert" style={{ padding: 8, color: 'var(--vscode-errorForeground)' }}>{menu.error}</div>}
       <div style={{ overflowY: 'auto', minHeight: 0 }}>
         {listItems.map(item => {
           if (item.separator) return <div key={item.id} style={{ borderTop: '1px solid var(--vscode-panel-border)', margin: '5px 4px', paddingTop: item.label ? 5 : 0, fontSize: 10, opacity: 0.7 }}>{item.label}</div>;
@@ -155,7 +157,7 @@ export function BranchPopup({ repoId, x, y, onClose, repositoryItems = [], onRep
             {item.description && <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</span>}
           </button>;
         })}
-        {menu && items.length === 0 && <div style={{ padding: 8 }}>No matching actions or branches</div>}
+        {menu && !menu.error && items.length === 0 && <div style={{ padding: 8 }}>No matching actions or branches</div>}
       </div>
     </div>, document.body,
   );

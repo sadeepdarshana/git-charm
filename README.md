@@ -276,6 +276,16 @@ Use the Status Bar branch menu for fast project-wide actions such as updating al
 | `Ctrl+Alt+L` | `Cmd+Alt+L` | `GitCharm: Focus Git Log` |
 | `Ctrl+Alt+K` | `Cmd+Alt+K` | `GitCharm: Commit` |
 
+## Analyze for Git Roots
+
+The last button in the Commit panel's view toolbar opens **Analyze for Git Roots**. Click **Analyze** to recursively search every currently opened workspace folder, including repositories nested inside other repositories and linked worktrees. Results appear in a checklist alongside existing managed roots, including those outside the scan or excluded by ignore rules. Existing roots start checked; new discoveries start unchecked. Use **Select all** or **Clear** to change the selections, then **Apply Selection** to save the roots you want to manage. Unchecked roots are removed from GitCharm in this workspace. Scanning or closing the dialog alone does not change managed roots. Applied roots are saved in VS Code's workspace storage for future sessions, independently of the automatic scan depth. Multi-folder workspaces save roots separately for each folder.
+
+Right-click a repository and choose **Remove Git Root** to stop managing that root in this workspace. Removal persists across reloads and automatic discovery; repository files remain unchanged. An explicit **Analyze** run can find the root again; check it and use **Apply Selection** to add it back. Cancelled scans leave removed roots unchanged. Use the notification’s **Undo** action or **GitCharm: Restore Removed Git Roots** from the Command Palette to restore selected roots.
+
+The dialog remembers its ignore checkbox and patterns. **File masks** accept comma-, semicolon-, or newline-separated folder masks (`node_modules`, `cmake-build-*`) and workspace-relative paths (`third-party/sdk`, `**/cache`). **Regular expression** accepts a JavaScript regex over workspace-relative paths with `/` separators. Excludes only affect this scan; they do not remove repositories already managed by GitCharm.
+
+Default excludes cover Node dependencies, Java and Python caches, and explicitly named CMake build folders. Ordinary folders named `build` remain eligible. Git metadata and symbolic links are always skipped. Directory traversal uses a worker and bounded parallel filesystem reads, with no intentional delays. Progress and results show elapsed time and the number of folders scanned. The progress notification supports cancellation; cancelled scans do not save partial results. Unreadable subfolders are skipped and reported in the result.
+
 ## ⚙️ Settings
 
 | Setting | Default | Description |

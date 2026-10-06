@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Codicon } from '../../shared/Codicon';
 import { FastTooltip } from '../../shared/FastTooltip';
 import { ContextMenu } from './ContextMenu';
+import { GitRootScanDialog } from './GitRootScanDialog';
 
 const views = [
   { id: 'changes', label: 'Changes', icon: 'source-control' },
@@ -18,6 +19,7 @@ export function PanelControls({ tab, mode, onTab, onRefresh, onExpand, onCollaps
   onExpand: () => void; onCollapse: () => void; onMode: (mode: 'flat' | 'tree') => void;
 }) {
   const [menu, setMenu] = useState<{ kind: 'tabs' | 'options'; x: number; y: number } | null>(null);
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
   const active = views.find(view => view.id === tab)!;
   const open = (event: React.MouseEvent, kind: 'tabs' | 'options') => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -39,6 +41,8 @@ export function PanelControls({ tab, mode, onTab, onRefresh, onExpand, onCollaps
       {button('Collapse All', 'collapse-all', onCollapse)}
       {button('View Options', 'eye', event => open(event, 'options'), true)}
     </>}
+    {button('Analyze for Git Roots', 'search', () => setScanDialogOpen(true))}
+    {scanDialogOpen && <GitRootScanDialog onClose={() => setScanDialogOpen(false)} />}
     {menu && createPortal(<ContextMenu x={menu.x} y={menu.y}
       items={menu.kind === 'tabs' ? views.map(view => ({ ...view, icon: view.id === tab ? 'check' : view.icon })) : [
         { id: 'flat', label: 'Flat list', icon: mode === 'flat' ? 'check' : 'list-unordered' },

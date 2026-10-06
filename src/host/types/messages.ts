@@ -1,3 +1,4 @@
+import type { RepositoryScanOptions, GitRootReviewItem } from '../git/RepositoryScanner';
 import type {
   BranchInfo,
   ChangelistData,
@@ -64,7 +65,10 @@ export interface BranchPopupItem {
 }
 
 export type HostToCommitMsg =
-  | { type: 'COMMIT_BRANCH_POPUP'; requestId: string; menuId: number; title: string; items: BranchPopupItem[] }
+  | { type: 'GIT_ROOT_SCAN_OPTIONS'; options: RepositoryScanOptions; folders: string[] }
+  | { type: 'GIT_ROOT_SCAN_RESULT'; requestId: string; summary?: string; error?: string; reviewId?: string; roots?: GitRootReviewItem[] }
+  | { type: 'GIT_ROOT_SCAN_APPLIED'; requestId: string; summary?: string; error?: string }
+  | { type: 'COMMIT_BRANCH_POPUP'; requestId: string; menuId: number; title: string; items: BranchPopupItem[]; error?: string }
   | { type: 'COMMIT_STATUS_UPDATE'; repos: RepoMeta[]; status: WorkspaceStatus; iconTheme?: IconThemeData; fileViewMode?: 'flat' | 'tree'; defaultCommitAction?: 'commit' | 'commitAndPush'; defaultSaveAction?: 'stash' | 'shelve'; hasWorkspaceFolder?: boolean; aiEnabled?: boolean; activeProfile?: { name: string; gitName: string; gitEmail: string; builtIn?: 'local' | 'global' } }
   | { type: 'COMMIT_DIFF_RESULT'; requestId: string; diff: FileDiff | null; error?: string }
   | { type: 'COMMIT_OP_RESULT'; requestId: string; ok: boolean; output?: string; error?: string }
@@ -102,6 +106,9 @@ export type HostToCommitMsg =
 // ─── Commit Panel: WebView → Host ────────────────────────────────────────────
 
 export type CommitToHostMsg =
+  | { type: 'GIT_ROOT_SCAN_GET_OPTIONS' }
+  | { type: 'GIT_ROOT_SCAN_ANALYZE'; requestId: string; options: RepositoryScanOptions }
+  | { type: 'GIT_ROOT_SCAN_APPLY'; requestId: string; reviewId: string; selectedRoots: string[] }
   | { type: 'COMMIT_BRANCH_POPUP_CREATE'; requestId: string; name: string }
   | { type: 'COMMIT_OPEN_BRANCH_POPUP'; repoId: string; requestId: string }
   | { type: 'COMMIT_BRANCH_POPUP_SELECT'; requestId: string; menuId: number; id: string }
@@ -202,6 +209,7 @@ export type CommitToHostMsg =
   | { type: 'COMMIT_INIT_REPO' }
   | { type: 'COMMIT_OPEN_FOLDER' }
   | { type: 'COMMIT_CLONE_REPO' }
+  | { type: 'COMMIT_REMOVE_GIT_ROOT'; repoId: string }
   | { type: 'COMMIT_HIDE_REPO'; repoId: string }
   | { type: 'COMMIT_UNHIDE_REPO'; repoId: string }
   | { type: 'COMMIT_MANAGE_HIDDEN_REPOS' }

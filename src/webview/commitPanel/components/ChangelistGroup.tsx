@@ -1,3 +1,4 @@
+import { RepositoryLabel } from '../../shared/RepositoryLabel';
 import React, { useEffect, useRef, useState } from 'react';
 import type { ChangelistData, FileStatus, RepoStatus } from '../../shared/types';
 import { CHANGELIST_DEFAULT_ID, CHANGELIST_UNVERSIONED_ID } from '../../shared/types';
@@ -259,7 +260,7 @@ function RepoSubGroup({
             <Codicon name={collapsed ? 'chevron-right' : 'chevron-down'} style={styles.repoChevron} />
             <span style={styles.repoDot(repoColor)} />
             <span style={styles.repoName}>
-              {isWorktree && mainWorktreePath ? mainWorktreePath.split('/').pop() ?? repoName : repoName}
+              <RepositoryLabel rootPath={repoId} displayPath={repoName} />
             </span>
             {isSubmodule && (
               <span style={styles.submoduleBadge} title={submodulePath ? `Submodule: ${submodulePath}` : 'Submodule'}>SUB</span>

@@ -124,6 +124,11 @@
     },
     "commands": [
       {
+        "command": "gitcharm.restoreRemovedGitRoots",
+        "title": "Restore Removed Git Roots",
+        "category": "GitCharm"
+      },
+      {
         "command": "gitcharm.openLog",
         "title": "Focus Git Log",
         "category": "GitCharm",
@@ -1095,6 +1100,8 @@
     ]
   },
   "scripts": {
+    "test:branch-menu": "node --test tests/branch-menu.test.mjs",
+    "test:repository-scan": "node --test tests/repository-*.test.mjs",
     "vscode:prepublish": "npm run build",
     "build": "npm run build:host && npm run build:webview",
     "build:host": "node esbuild.mjs --prod",
