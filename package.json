@@ -29,7 +29,7 @@
     "intellij",
     "phpstorm"
   ],
-  "icon": "media/icons/gitcharm.png",
+  "icon": "media/icons/git-amulet-256.png",
   "galleryBanner": {
     "color": "#1e1e2e",
     "theme": "dark"
