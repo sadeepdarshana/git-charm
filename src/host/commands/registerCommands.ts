@@ -195,7 +195,7 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('gitcharm.openSettings', () => {
-      vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.gitcharm-spinoff');
+      vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.git-amulet');
     }),
 
     vscode.commands.registerCommand('gitcharm.resetViewLocations', async () => {
@@ -325,7 +325,7 @@ export function registerCommands(
       if (!pickedProvider) return;
 
       if (pickedProvider.providerId === OPEN_SETTINGS_ID) {
-        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.gitcharm-spinoff gitcharm.ai');
+        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.git-amulet gitcharm.ai');
         return;
       }
 

@@ -1,7 +1,7 @@
 {
-  "name": "gitcharm-spinoff",
-  "displayName": "GitCharm Spin-off",
-  "description": "An opinionated spin-off of GitCharm by RioNoir, tailored to my own workflow. For the original, use RioNoir.gitcharm.",
+  "name": "git-amulet",
+  "displayName": "Git Amulet",
+  "description": "JetBrains-style Git for VS Code. An opinionated spin-off of GitCharm by RioNoir, tailored to my workflow. Most users want the original: RioNoir.gitcharm.",
   "version": "0.4.5",
   "publisher": "SadeepWeerasinghe",
   "license": "GPL-3.0-only",

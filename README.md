@@ -1,8 +1,8 @@
-> **GitCharm Spin-off** is an opinionated spin-off of [GitCharm](https://github.com/RioNoir/GitCharm), created by [RioNoir](https://github.com/RioNoir). I maintain it (Sadeep Weerasinghe) to fit my own workflow: changes to commit controls, repository and branch menus, and multi-repo scanning. All credit for the original extension goes to its author.
+> **Git Amulet** is an opinionated spin-off of [GitCharm](https://github.com/RioNoir/GitCharm), created by [RioNoir](https://github.com/RioNoir). I maintain it (Sadeep Weerasinghe) to fit my own workflow: changes to commit controls, repository and branch menus, and multi-repo scanning. All credit for the original extension goes to its author.
 >
 > **Most users should install the original:** [GitCharm on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RioNoir.gitcharm). It is better maintained and more general.
 >
-> This build installs as `SadeepWeerasinghe.gitcharm-spinoff`. It shares GitCharm's command and view IDs, so **install only one of the two**. Distributed under GPL-3.0, same as upstream; source: https://github.com/sadeepdarshana/git-charm. The original README follows.
+> This build installs as `SadeepWeerasinghe.git-amulet`. It shares GitCharm's command and view IDs, so **install only one of the two**. Distributed under GPL-3.0, same as upstream; source: https://github.com/sadeepdarshana/git-charm. The original README follows.
 
 <p align="center">
   <img src="media/icons/gitcharm.png" alt="GitCharm" width="160">

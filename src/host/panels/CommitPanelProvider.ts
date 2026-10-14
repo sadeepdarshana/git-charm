@@ -1412,7 +1412,7 @@ export class CommitPanelProvider implements vscode.WebviewViewProvider {
       }
 
       case 'COMMIT_OPEN_AI_SETTINGS': {
-        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.gitcharm-spinoff gitcharm.ai');
+        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:SadeepWeerasinghe.git-amulet gitcharm.ai');
         break;
       }
 
